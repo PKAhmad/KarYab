@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "n8n": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-remote",
+        "https://automations.getgenius.de/mcp-server/http",
+        "--header",
+        "Authorization: Bearer YOUR_N8N_BEARER_TOKEN"
+      ]
+    }
+  }
+}

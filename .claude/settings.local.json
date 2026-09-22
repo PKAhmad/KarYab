@@ -1,0 +1,36 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Get-ChildItem -Path \"D:\\\\Coding\\\\KarYab\\\\lib\" -Recurse -File | ForEach-Object { $_.FullName })",
+      "Bash(flutter analyze *)",
+      "PowerShell(flutter analyze *)",
+      "Bash(C:\\\\flutter\\\\bin\\\\flutter.bat analyze *)",
+      "PowerShell(& \"C:\\\\flutter\\\\bin\\\\flutter.bat\" analyze lib/screens/questionnaire_screen.dart 2>&1)",
+      "PowerShell(& \"C:\\\\flutter\\\\bin\\\\flutter.bat\" analyze lib/screens/introduction_screen.dart lib/screens/job_finder_screen.dart lib/main.dart 2>&1)",
+      "PowerShell(\\(Get-Content \"D:\\\\Coding\\\\KarYab\\\\lib\\\\screens\\\\questionnaire_screen.dart\" | Measure-Object -Line\\).Lines)",
+      "PowerShell($env:PATH; where.exe flutter 2>$null)",
+      "PowerShell(Get-ChildItem *)",
+      "PowerShell(Get-Command *)",
+      "PowerShell(& \"C:\\\\flutter\\\\bin\\\\flutter.bat\" analyze \"D:\\\\Coding\\\\KarYab\\\\lib\\\\screens\\\\questionnaire_screen.dart\" 2>&1)",
+      "Bash(Test-Path *)",
+      "Bash(flutter pub *)",
+      "Bash(New-Item -ItemType Directory -Force \"D:\\\\coding\\\\KarYab\\\\android\\\\app\\\\src\\\\main\\\\res\\\\xml\")",
+      "Bash(Out-Null)",
+      "Bash(Write-Output \"done\")",
+      "PowerShell(New-Item *)",
+      "Bash(grep -v \"//\")",
+      "Bash(Remove-Item *)",
+      "PowerShell(Remove-Item *)",
+      "Bash(grep -v \"//.*Belgium\\\\|// ignore\")",
+      "PowerShell(flutter *)",
+      "Bash(node -e ' *)",
+      "Bash(python3 -c \"import fitz\")",
+      "Bash(python3 -c \"import pdf2image\")",
+      "Read(//c/flutter/**)",
+      "Read(//c/flutter/bin/cache/**)",
+      "Bash(/c/Python313/python *)",
+      "Bash(flutter devices *)",
+      "PowerShell($flutter = Get-Command flutter -ErrorAction SilentlyContinue; if \\($flutter\\) { $flutter.Source } else { \"not found in PATH\" })"
+    ]
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "601011755083",
+    "project_id": "karyab-eb2e9",
+    "storage_bucket": "karyab-eb2e9.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:601011755083:android:df2de154ae6671ed6d55ce",
+        "android_client_info": {
+          "package_name": "com.example.karyab"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCUrnizcLQoInDgjmIt0TVq9TaMYqDloqA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

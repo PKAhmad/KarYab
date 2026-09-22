@@ -1,0 +1,524 @@
+import 'dart:io';
+import 'dart:typed_data';
+import 'dart:ui';
+
+import 'package:flutter/material.dart';
+import 'package:pdf/pdf.dart';
+import 'package:printing/printing.dart';
+
+import '../models/document_template.dart';
+import '../models/user_profile.dart';
+import '../services/analytics_service.dart';
+import '../services/cv_pdf_generator.dart';
+import '../utils/navigation_helpers.dart';
+import '../widgets/document_template_picker.dart';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Cover Letter / Deckblatt — type-agnostic application documents, reached
+// from ChooseCvTypeScreen as sibling options to Job CV / Ausbildung CV.
+// Generated via generateAnschreiben()/generateDeckblatt() in
+// services/cv_pdf_generator.dart from the UserProfile built out of
+// 'saved_profile' - no extra questionnaire step, usable regardless of which
+// CV type (if any) the user has. Both document types let the user pick a
+// template via showAnschreibenTemplatePicker()/showDeckblattTemplatePicker()
+// (same UX as the CV template picker).
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Independent from every other DocumentTemplate/AnschreibenTemplate/
+// DeckblattTemplate prefs key in the app (regular CV, Ausbildung CV) - each
+// document type's template choice must never share or clobber another's.
+const String kAnschreibenTemplatePrefsKey = 'selected_anschreiben_template';
+const String kDeckblattTemplatePrefsKey = 'selected_deckblatt_template';
+
+enum LetterDocType { coverLetter, deckblatt }
+
+class LetterDocumentScreen extends StatefulWidget {
+  final UserProfile profile;
+  final String language;
+  final LetterDocType docType;
+  // Optional per-job overrides - set when this screen is opened from a
+  // specific job posting (e.g. an Ausbildung listing's "Cover Letter
+  // erstellen" button) so the generated Anschreiben is relevant to that
+  // exact posting instead of the user's generic saved target position.
+  // Ignored for docType == deckblatt. Null/empty preserves the existing
+  // profile-derived behavior unchanged (e.g. the ChooseCvTypeScreen entry
+  // point below, which passes none of these).
+  final String? jobTitle;
+  final String? companyName;
+  final bool isAusbildungCv;
+
+  const LetterDocumentScreen({
+    super.key,
+    required this.profile,
+    required this.language,
+    required this.docType,
+    this.jobTitle,
+    this.companyName,
+    this.isAusbildungCv = false,
+  });
+
+  @override
+  State<LetterDocumentScreen> createState() => _LetterDocumentScreenState();
+}
+
+class _LetterDocumentScreenState extends State<LetterDocumentScreen> {
+  static const Color _navy  = Color(0xFF091733);
+  static const Color _green = Color(0xFF39EA2B);
+
+  late String _lang;
+  bool _saving = false;
+  AnschreibenTemplate _anschreibenTemplate = AnschreibenTemplate.blauMinimal;
+  DeckblattTemplate _deckblattTemplate = DeckblattTemplate.braunIconSet;
+
+  @override
+  void initState() {
+    super.initState();
+    _lang = widget.language;
+    AnalyticsService().logScreen(
+        widget.docType == LetterDocType.coverLetter
+            ? 'cover_letter'
+            : 'deckblatt');
+    if (widget.docType == LetterDocType.coverLetter) {
+      _loadAnschreibenTemplate();
+    } else {
+      _loadDeckblattTemplate();
+    }
+  }
+
+  Future<void> _loadAnschreibenTemplate() async {
+    final t = await loadSelectedAnschreibenTemplate(kAnschreibenTemplatePrefsKey);
+    if (mounted) setState(() => _anschreibenTemplate = t);
+  }
+
+  Future<void> _pickAnschreibenTemplate() async {
+    final chosen =
+        await showAnschreibenTemplatePicker(context, current: _anschreibenTemplate);
+    if (!mounted || chosen == _anschreibenTemplate) return;
+    setState(() => _anschreibenTemplate = chosen);
+    await saveSelectedAnschreibenTemplate(kAnschreibenTemplatePrefsKey, chosen);
+  }
+
+  Future<void> _loadDeckblattTemplate() async {
+    final t = await loadSelectedDeckblattTemplate(kDeckblattTemplatePrefsKey);
+    if (mounted) setState(() => _deckblattTemplate = t);
+  }
+
+  Future<void> _pickDeckblattTemplate() async {
+    final chosen =
+        await showDeckblattTemplatePicker(context, current: _deckblattTemplate);
+    if (!mounted || chosen == _deckblattTemplate) return;
+    setState(() => _deckblattTemplate = chosen);
+    await saveSelectedDeckblattTemplate(kDeckblattTemplatePrefsKey, chosen);
+  }
+
+  void _pickTemplate() => widget.docType == LetterDocType.coverLetter
+      ? _pickAnschreibenTemplate()
+      : _pickDeckblattTemplate();
+
+  String get _currentTemplateDisplayName => widget.docType == LetterDocType.coverLetter
+      ? _anschreibenTemplate.displayName
+      : _deckblattTemplate.displayName;
+
+  void _goHome() =>
+      goHomeToIntroduction(context, language: _lang, voiceMode: false);
+
+  Future<Uint8List> _buildBytes(PdfPageFormat format) {
+    return widget.docType == LetterDocType.coverLetter
+        ? generateAnschreiben(
+            widget.profile,
+            _anschreibenTemplate,
+            isAusbildungCv: widget.isAusbildungCv,
+            jobTitleOverride: widget.jobTitle,
+            companyNameOverride: widget.companyName,
+          )
+        : generateDeckblatt(widget.profile, _deckblattTemplate);
+  }
+
+  String get _pdfFilename {
+    final name = widget.profile.fullName.replaceAll(' ', '_');
+    final prefix =
+        widget.docType == LetterDocType.coverLetter ? 'Anschreiben' : 'Deckblatt';
+    return '${prefix}_$name.pdf';
+  }
+
+  Future<void> _download() async {
+    if (_saving) return;
+    setState(() => _saving = true);
+    try {
+      final bytes = await _buildBytes(PdfPageFormat.a4);
+      bool saved = false;
+      try {
+        final dir = Directory('/storage/emulated/0/Download');
+        if (!await dir.exists()) await dir.create(recursive: true);
+        await File('${dir.path}/$_pdfFilename').writeAsBytes(bytes);
+        saved = true;
+      } catch (_) {}
+
+      if (!mounted) return;
+      if (saved) {
+        _snack(_savedMsg);
+      } else {
+        await Printing.sharePdf(bytes: bytes, filename: _pdfFilename);
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  void _snack(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg, style: const TextStyle(color: Colors.white)),
+      backgroundColor: _navy,
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    ));
+  }
+
+  String get _titleLabel {
+    if (widget.docType == LetterDocType.coverLetter) {
+      switch (_lang) {
+        case 'ps': return 'د پوښتنلیک لیک';
+        case 'fa': return 'نامه پوششی';
+        default:   return 'Cover Letter';
+      }
+    }
+    return 'Deckblatt';
+  }
+
+  String get _downloadLabel {
+    switch (_lang) {
+      case 'ps': return 'ډاونلوډ کړئ';
+      case 'fa': return 'دانلود';
+      default:   return 'Download PDF';
+    }
+  }
+
+  String get _chooseTemplateLabel {
+    switch (_lang) {
+      case 'ps': return 'کینډۍ وټاکئ';
+      case 'fa': return 'انتخاب قالب';
+      default:   return 'Choose Template';
+    }
+  }
+
+  String get _savedMsg {
+    switch (_lang) {
+      case 'ps': return 'سند په ډاونلوډ کې خوندي شو';
+      case 'fa': return 'سند در دانلودها ذخیره شد';
+      default:   return 'Saved to Downloads';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF7FAFF),
+      body: Stack(
+        children: [
+          const _BackgroundGlow(),
+          SafeArea(
+            child: Column(
+              children: [
+                _buildHeader(),
+                Expanded(
+                  child: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                    child: _buildDocSection(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      child: Row(
+        children: [
+          _NavBtn(
+            icon: Icons.arrow_back_ios_new_rounded,
+            onTap: () => Navigator.pop(context),
+          ),
+          Expanded(
+            child: Text(
+              _titleLabel,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: _navy,
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+          _NavBtn(icon: Icons.home_rounded, onTap: _goHome),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDocSection() {
+    return _GlassSurface(
+      borderRadius: 20,
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFEAFBE9),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  widget.docType == LetterDocType.coverLetter
+                      ? Icons.mail_rounded
+                      : Icons.badge_rounded,
+                  color: _green,
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  _titleLabel,
+                  style: const TextStyle(
+                    color: _navy,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              GestureDetector(
+                onTap: _pickTemplate,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEAFBE9),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: _green.withOpacity(0.4)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '$_chooseTemplateLabel: $_currentTemplateDisplayName',
+                        style: const TextStyle(
+                          color: _navy,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(width: 3),
+                      const Icon(Icons.keyboard_arrow_down_rounded,
+                          color: _green, size: 15),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(14),
+            child: SizedBox(
+              height: 440,
+              // Keyed to whichever template applies to this docType, so the
+              // preview regenerates when the user picks a different one.
+              child: PdfPreview(
+                key: ValueKey(widget.docType == LetterDocType.coverLetter
+                    ? _anschreibenTemplate.name
+                    : _deckblattTemplate.name),
+                build: _buildBytes,
+                canChangeOrientation: false,
+                canChangePageFormat: false,
+                canDebug: false,
+                pdfFileName: _pdfFilename,
+                loadingWidget: const Center(
+                  child: CircularProgressIndicator(color: _green),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          GestureDetector(
+            onTap: _saving ? null : _download,
+            child: Container(
+              width: double.infinity,
+              height: 52,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(26),
+                gradient: const LinearGradient(
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                  colors: [Color(0xFF081532), Color(0xFF07112B)],
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF07112B).withOpacity(0.30),
+                    blurRadius: 18,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (_saving)
+                    const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                          color: _green, strokeWidth: 2.5),
+                    )
+                  else
+                    const Icon(Icons.download_rounded,
+                        color: Colors.white, size: 18),
+                  const SizedBox(width: 8),
+                  Text(
+                    _downloadLabel,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Shared small widgets (duplicated per-file, matching the existing pattern
+// already used the same way in cv_preview_screen.dart,
+// ausbildung_document_preview_screen.dart, choose_cv_type_screen.dart and
+// introduction_screen.dart).
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _NavBtn extends StatelessWidget {
+  static const Color _navy = Color(0xFF091733);
+
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _NavBtn({required this.icon, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: _GlassSurface(
+        width: 44,
+        height: 44,
+        borderRadius: 14,
+        padding: EdgeInsets.zero,
+        child: Icon(icon, color: _navy, size: 20),
+      ),
+    );
+  }
+}
+
+class _BackgroundGlow extends StatelessWidget {
+  const _BackgroundGlow();
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: const [
+        DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFFF9FBFF), Color(0xFFEFF6FF), Color(0xFFF7FFF2)],
+            ),
+          ),
+          child: SizedBox.expand(),
+        ),
+        Positioned(top: 70,   left: -42,  child: _Orb(size: 170, color: Color(0x6639EA2B))),
+        Positioned(top: 135,  right: -65, child: _Orb(size: 170, color: Color(0x44FFB86B))),
+        Positioned(bottom: 95, left: -60, child: _Orb(size: 210, color: Color(0x3339EA2B))),
+      ],
+    );
+  }
+}
+
+class _Orb extends StatelessWidget {
+  final double size;
+  final Color color;
+  const _Orb({required this.size, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: ImageFiltered(
+        imageFilter: ImageFilter.blur(sigmaX: 35, sigmaY: 35),
+        child: Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+      ),
+    );
+  }
+}
+
+class _GlassSurface extends StatelessWidget {
+  final Widget child;
+  final double? width;
+  final double? height;
+  final double borderRadius;
+  final EdgeInsetsGeometry padding;
+
+  const _GlassSurface({
+    required this.child,
+    this.width,
+    this.height,
+    required this.borderRadius,
+    required this.padding,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(borderRadius),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+        child: Container(
+          width: width ?? double.infinity,
+          height: height,
+          padding: padding,
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.62),
+            borderRadius: BorderRadius.circular(borderRadius),
+            border: Border.all(color: Colors.white.withOpacity(0.85), width: 1.2),
+            boxShadow: [
+              BoxShadow(
+                  color: Colors.black.withOpacity(0.18),
+                  blurRadius: 24,
+                  spreadRadius: 2,
+                  offset: const Offset(0, 8)),
+              BoxShadow(
+                  color: Colors.black.withOpacity(0.08),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2)),
+            ],
+          ),
+          child: child,
+        ),
+      ),
+    );
+  }
+}
