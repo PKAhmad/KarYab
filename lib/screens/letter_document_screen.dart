@@ -1,9 +1,11 @@
+import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:pdf/pdf.dart';
 import 'package:printing/printing.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/document_template.dart';
 import '../models/user_profile.dart';
@@ -80,6 +82,28 @@ class _LetterDocumentScreenState extends State<LetterDocumentScreen> {
   AnschreibenTexts? _generated;
   bool _loadingTexts = false;
 
+  // Deckblatt only: which documents the Deckblatt lists under "Unterlagen:".
+  // Nothing is listed unless the user ticked it (or typed it as a custom
+  // entry); the last selection is persisted. The list is capped at
+  // _kMaxUnterlagen entries in total.
+  static const String _kUnterlagenPrefsKey = 'deckblatt_unterlagen_selection';
+  static const String _kAnschreibenCreatedKey = 'anschreiben_created';
+  static const int _kMaxUnterlagen = 8;
+  // key -> German name printed on the Deckblatt (also the persisted key order)
+  static const Map<String, String> _kStdUnterlagen = {
+    'lebenslauf': 'Lebenslauf',
+    'anschreiben': 'Anschreiben',
+    'zeugnisse': 'Zeugnisse',
+    'sprachzertifikat': 'Sprachzertifikat',
+    'fuehrerschein': 'Führerschein',
+    'praktikum': 'Praktikumsbescheinigung',
+  };
+  final Set<String> _ticked = {};
+  final List<String> _custom = [];
+  final _customCtrl = TextEditingController();
+  bool _unterlagenLoaded = false;
+  bool _deckblattCreated = false;
+
   bool get _isCoverLetter => widget.docType == LetterDocType.coverLetter;
   bool get _isRtl => _lang == 'ps' || _lang == 'fa';
 
@@ -96,6 +120,7 @@ class _LetterDocumentScreenState extends State<LetterDocumentScreen> {
       _loadAnschreibenTemplate();
     } else {
       _loadDeckblattTemplate();
+      _loadUnterlagen();
     }
   }
 
@@ -105,6 +130,7 @@ class _LetterDocumentScreenState extends State<LetterDocumentScreen> {
     _openingCtrl.dispose();
     _middleCtrl.dispose();
     _closingCtrl.dispose();
+    _customCtrl.dispose();
     super.dispose();
   }
 
@@ -187,6 +213,101 @@ class _LetterDocumentScreenState extends State<LetterDocumentScreen> {
     await saveSelectedAnschreibenTemplate(kAnschreibenTemplatePrefsKey, chosen);
   }
 
+  int get _unterlagenCount => _ticked.length + _custom.length;
+
+  // Print order: ticked standard documents in their fixed order, then the
+  // custom entries as typed.
+  List<String> get _unterlagenList => [
+        for (final e in _kStdUnterlagen.entries)
+          if (_ticked.contains(e.key)) e.value,
+        ..._custom,
+      ];
+
+  // Restores the last selection. With none saved yet, Lebenslauf and
+  // Anschreiben are pre-ticked only if the app knows the user created them.
+  Future<void> _loadUnterlagen() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_kUnterlagenPrefsKey);
+      final ticked = <String>{};
+      final custom = <String>[];
+      if (raw != null && raw.isNotEmpty) {
+        final map = jsonDecode(raw) as Map<String, dynamic>;
+        for (final k in (map['ticked'] as List<dynamic>? ?? [])) {
+          if (_kStdUnterlagen.containsKey(k)) ticked.add(k as String);
+        }
+        for (final c in (map['custom'] as List<dynamic>? ?? [])) {
+          final t = (c as String).trim();
+          if (t.isNotEmpty && !custom.contains(t)) custom.add(t);
+        }
+      } else {
+        if (prefs.getBool('cv_created') ?? false) ticked.add('lebenslauf');
+        if (prefs.getBool(_kAnschreibenCreatedKey) ?? false) {
+          ticked.add('anschreiben');
+        }
+      }
+      while (ticked.length + custom.length > _kMaxUnterlagen &&
+          custom.isNotEmpty) {
+        custom.removeLast();
+      }
+      if (!mounted) return;
+      setState(() {
+        _ticked
+          ..clear()
+          ..addAll(ticked);
+        _custom
+          ..clear()
+          ..addAll(custom);
+      });
+    } catch (_) {
+      // Fall through to an empty selection; the user can tick manually.
+    } finally {
+      if (mounted) setState(() => _unterlagenLoaded = true);
+    }
+  }
+
+  Future<void> _saveUnterlagen() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        _kUnterlagenPrefsKey,
+        jsonEncode({'ticked': _ticked.toList(), 'custom': _custom}),
+      );
+    } catch (_) {}
+  }
+
+  void _toggleUnterlage(String key, bool on) {
+    setState(() {
+      if (on) {
+        if (_unterlagenCount < _kMaxUnterlagen) _ticked.add(key);
+      } else {
+        _ticked.remove(key);
+      }
+    });
+  }
+
+  void _addCustomUnterlage() {
+    final t = _customCtrl.text.trim();
+    if (t.isEmpty || _custom.contains(t)) return;
+    if (_unterlagenCount >= _kMaxUnterlagen) return;
+    setState(() {
+      _custom.add(t);
+      _customCtrl.clear();
+    });
+  }
+
+  Future<void> _createDeckblatt() async {
+    await _saveUnterlagen();
+    if (mounted) setState(() => _deckblattCreated = true);
+  }
+
+  Future<void> _markAnschreibenCreated() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_kAnschreibenCreatedKey, true);
+    } catch (_) {}
+  }
+
   Future<void> _loadDeckblattTemplate() async {
     final t = await loadSelectedDeckblattTemplate(kDeckblattTemplatePrefsKey);
     if (mounted) setState(() => _deckblattTemplate = t);
@@ -225,7 +346,12 @@ class _LetterDocumentScreenState extends State<LetterDocumentScreen> {
             middleText: _middleCtrl.text.trim(),
             closingText: _closingCtrl.text.trim(),
           )
-        : generateDeckblatt(widget.profile, _deckblattTemplate);
+        : generateDeckblatt(
+            widget.profile,
+            _deckblattTemplate,
+            // Only what the user ticked or typed, in print order.
+            unterlagen: _unterlagenList,
+          );
   }
 
   String get _pdfFilename {
@@ -248,6 +374,8 @@ class _LetterDocumentScreenState extends State<LetterDocumentScreen> {
       } else {
         await Printing.sharePdf(bytes: bytes, filename: _pdfFilename);
       }
+      // Lets the Deckblatt checklist pre-tick Anschreiben next time.
+      if (_isCoverLetter) _markAnschreibenCreated();
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -272,6 +400,82 @@ class _LetterDocumentScreenState extends State<LetterDocumentScreen> {
     }
     return 'Deckblatt';
   }
+
+  String _t({
+    required String en,
+    required String de,
+    required String ps,
+    required String fa,
+  }) {
+    switch (_lang) {
+      case 'ps': return ps;
+      case 'fa': return fa;
+      case 'de': return de;
+      default:   return en;
+    }
+  }
+
+  String get _unterlagenTitle => _t(
+        en: 'Documents to list on the Deckblatt',
+        de: 'Unterlagen für das Deckblatt',
+        ps: 'هغه اسناد چې په Deckblatt کې لیکل کیږي',
+        fa: 'مدارکی که روی Deckblatt فهرست می‌شوند',
+      );
+
+  String get _unterlagenHint => _t(
+        en: 'Tick only what you will really send. The Deckblatt lists exactly these.',
+        de: 'Wähle nur aus, was du wirklich mitschickst. Das Deckblatt listet genau diese Unterlagen.',
+        ps: 'یوازې هغه اسناد وټاکئ چې رښتیا یې لیږئ. Deckblatt به یوازې همدا اسناد ولیکي.',
+        fa: 'فقط مدارکی را انتخاب کنید که واقعا ارسال می‌کنید. Deckblatt دقیقا همین‌ها را فهرست می‌کند.',
+      );
+
+  String _stdUnterlageHelp(String key) {
+    switch (key) {
+      case 'lebenslauf':
+        return _t(en: 'CV', de: '', ps: 'CV', fa: 'رزومه');
+      case 'anschreiben':
+        return _t(en: 'Cover letter', de: '', ps: 'د پوښتنلیک لیک', fa: 'نامه پوششی');
+      case 'zeugnisse':
+        return _t(en: 'Certificates', de: '', ps: 'تصدیق‌نامې', fa: 'گواهی‌نامه‌ها');
+      case 'sprachzertifikat':
+        return _t(en: 'Language certificate', de: '', ps: 'د ژبې تصدیق‌نامه', fa: 'گواهی زبان');
+      case 'fuehrerschein':
+        return _t(en: 'Driving licence', de: '', ps: 'د موټر چلولو جواز', fa: 'گواهی‌نامه رانندگی');
+      default:
+        return _t(en: 'Internship certificate', de: '', ps: 'د کارورزۍ تصدیق‌نامه', fa: 'گواهی کارآموزی');
+    }
+  }
+
+  String get _customHint => _t(
+        en: 'Add another document',
+        de: 'Weitere Unterlage hinzufügen',
+        ps: 'بل سند اضافه کړئ',
+        fa: 'سند دیگری اضافه کنید',
+      );
+
+  String get _addLabel =>
+      _t(en: 'Add', de: 'Hinzufügen', ps: 'اضافه کړئ', fa: 'افزودن');
+
+  String get _maxReachedLabel => _t(
+        en: 'Maximum of 8 documents reached',
+        de: 'Höchstens 8 Unterlagen möglich',
+        ps: 'تر ډېره ۸ اسناد کېدای شي',
+        fa: 'حداکثر ۸ سند ممکن است',
+      );
+
+  String get _createDeckblattLabel => _t(
+        en: 'Create Deckblatt',
+        de: 'Deckblatt erstellen',
+        ps: 'Deckblatt جوړ کړئ',
+        fa: 'ساخت Deckblatt',
+      );
+
+  String get _changeDocumentsLabel => _t(
+        en: 'Change documents',
+        de: 'Unterlagen ändern',
+        ps: 'اسناد بدل کړئ',
+        fa: 'تغییر مدارک',
+      );
 
   String get _createPdfLabel {
     switch (_lang) {
@@ -504,6 +708,8 @@ class _LetterDocumentScreenState extends State<LetterDocumentScreen> {
           const SizedBox(height: 12),
           if (_isCoverLetter)
             _buildLetterEditor()
+          else if (!_deckblattCreated)
+            _buildUnterlagenSelector()
           else
             ClipRRect(
               borderRadius: BorderRadius.circular(14),
@@ -512,7 +718,8 @@ class _LetterDocumentScreenState extends State<LetterDocumentScreen> {
                 // Keyed to the Deckblatt template, so the preview
                 // regenerates when the user picks a different one.
                 child: PdfPreview(
-                  key: ValueKey(_deckblattTemplate.name),
+                  key: ValueKey(
+                      '${_deckblattTemplate.name}|${_unterlagenList.join('|')}'),
                   build: _buildBytes,
                   canChangeOrientation: false,
                   canChangePageFormat: false,
@@ -526,9 +733,11 @@ class _LetterDocumentScreenState extends State<LetterDocumentScreen> {
             ),
           const SizedBox(height: 12),
           GestureDetector(
-            onTap: (_saving || (_isCoverLetter && _loadingTexts))
-                ? null
-                : _download,
+            onTap: _isCoverLetter
+                ? ((_saving || _loadingTexts) ? null : _download)
+                : (!_deckblattCreated
+                    ? (_unterlagenLoaded ? _createDeckblatt : null)
+                    : (_saving ? null : _download)),
             child: Container(
               width: double.infinity,
               height: 52,
@@ -561,12 +770,18 @@ class _LetterDocumentScreenState extends State<LetterDocumentScreen> {
                     Icon(
                         _isCoverLetter
                             ? Icons.picture_as_pdf_rounded
-                            : Icons.download_rounded,
+                            : (_deckblattCreated
+                                ? Icons.download_rounded
+                                : Icons.badge_rounded),
                         color: Colors.white,
                         size: 18),
                   const SizedBox(width: 8),
                   Text(
-                    _isCoverLetter ? _createPdfLabel : _downloadLabel,
+                    _isCoverLetter
+                        ? _createPdfLabel
+                        : (_deckblattCreated
+                            ? _downloadLabel
+                            : _createDeckblattLabel),
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 14,
@@ -577,7 +792,178 @@ class _LetterDocumentScreenState extends State<LetterDocumentScreen> {
               ),
             ),
           ),
+          if (!_isCoverLetter && _deckblattCreated) ...[
+            const SizedBox(height: 8),
+            Center(
+              child: TextButton(
+                onPressed:
+                    _saving ? null : () => setState(() => _deckblattCreated = false),
+                child: Text(
+                  _changeDocumentsLabel,
+                  style: const TextStyle(
+                      color: _navy, fontSize: 12, fontWeight: FontWeight.w800),
+                ),
+              ),
+            ),
+          ],
         ],
+      ),
+    );
+  }
+
+  // Deckblatt step 1: pick what the Deckblatt lists under "Unterlagen:".
+  Widget _buildUnterlagenSelector() {
+    if (!_unterlagenLoaded) {
+      return const SizedBox(
+        height: 160,
+        child: Center(child: CircularProgressIndicator(color: _green)),
+      );
+    }
+    final full = _unterlagenCount >= _kMaxUnterlagen;
+    final dir = _isRtl ? TextDirection.rtl : TextDirection.ltr;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          _unterlagenTitle,
+          textDirection: dir,
+          style: const TextStyle(
+              color: _navy, fontSize: 14, fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          _unterlagenHint,
+          textDirection: dir,
+          style: TextStyle(
+              color: _navy.withOpacity(0.65), fontSize: 12, height: 1.4),
+        ),
+        const SizedBox(height: 8),
+        for (final e in _kStdUnterlagen.entries)
+          _unterlageTile(e.key, e.value, full),
+        if (_custom.isNotEmpty) ...[
+          const SizedBox(height: 4),
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            children: [
+              for (final c in _custom)
+                Chip(
+                  label: Text(c,
+                      style: const TextStyle(
+                          color: _navy,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700)),
+                  backgroundColor: const Color(0xFFEAFBE9),
+                  side: BorderSide(color: _green.withOpacity(0.5)),
+                  deleteIconColor: _navy,
+                  onDeleted: () => setState(() => _custom.remove(c)),
+                ),
+            ],
+          ),
+        ],
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _customCtrl,
+                enabled: !full,
+                maxLength: 40,
+                textDirection: TextDirection.ltr,
+                style: const TextStyle(color: _navy, fontSize: 13),
+                cursorColor: _green,
+                onSubmitted: (_) => _addCustomUnterlage(),
+                decoration: InputDecoration(
+                  counterText: '',
+                  hintText: full ? _maxReachedLabel : _customHint,
+                  hintStyle:
+                      TextStyle(color: _navy.withOpacity(0.45), fontSize: 12),
+                  filled: true,
+                  fillColor: Colors.white.withOpacity(0.85),
+                  isDense: true,
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide(color: _navy.withOpacity(0.12)),
+                  ),
+                  disabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide(color: _navy.withOpacity(0.08)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(color: _green, width: 1.6),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            GestureDetector(
+              onTap: full ? null : _addCustomUnterlage,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                decoration: BoxDecoration(
+                  color: full ? const Color(0xFFE4E8EE) : _green,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Text(
+                  _addLabel,
+                  style: const TextStyle(
+                      color: _navy, fontSize: 12, fontWeight: FontWeight.w800),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _unterlageTile(String key, String germanName, bool full) {
+    final on = _ticked.contains(key);
+    final help = _stdUnterlageHelp(key);
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: (!on && full) ? null : () => _toggleUnterlage(key, !on),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: Row(
+          textDirection: _isRtl ? TextDirection.rtl : TextDirection.ltr,
+          children: [
+            Checkbox(
+              value: on,
+              activeColor: _green,
+              checkColor: _navy,
+              side: BorderSide(color: _navy.withOpacity(0.4), width: 1.4),
+              onChanged: (!on && full)
+                  ? null
+                  : (v) => _toggleUnterlage(key, v ?? false),
+            ),
+            Expanded(
+              child: Column(
+                crossAxisAlignment:
+                    _isRtl ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    germanName,
+                    style: const TextStyle(
+                        color: _navy, fontSize: 13, fontWeight: FontWeight.w700),
+                  ),
+                  if (help.isNotEmpty)
+                    Text(
+                      help,
+                      textDirection:
+                          _isRtl ? TextDirection.rtl : TextDirection.ltr,
+                      style: TextStyle(
+                          color: _navy.withOpacity(0.55), fontSize: 11),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -190,16 +190,44 @@ Future<Uint8List> generateDeckblatt(
   UserProfile profile,
   DeckblattTemplate template, {
   bool isAusbildungCv = false,
+  // The documents the user ticked on the Unterlagen checklist, in print
+  // order. Only these are listed. Null falls back to the documents the app
+  // knows exist (see _loadAttachments()); an empty list prints no list.
+  List<String>? unterlagen,
 }) async {
   final ausbildung = await _loadAusbildungData();
   final position = _targetPosition(profile, ausbildung, isAusbildungCv);
-  final attachments = await _loadAttachments();
+  final docs = unterlagen ?? await _loadAttachments();
   switch (template) {
     case DeckblattTemplate.braunIconSet:
-      return _buildDeckblattBraunIconSet(profile, position, attachments);
+      return _buildDeckblattBraunIconSet(
+          profile, docs, _deckblattSubtitle(profile, ausbildung, isAusbildungCv));
     case DeckblattTemplate.weissBraunSchlicht:
-      return _buildDeckblattWeissBraunSchlicht(profile, position, attachments);
+      return _buildDeckblattWeissBraunSchlicht(profile, position, docs);
   }
+}
+
+// Subtitle under the name on the Deckblatt. Empty when no occupation is
+// known, so the caller can leave the line out entirely.
+String _deckblattSubtitle(
+    UserProfile p, _AusbildungData ausbildung, bool isAusbildungCv) {
+  final hasAusbildung = ausbildung.targetOccupation.isNotEmpty ||
+      ausbildung.eduLines.isNotEmpty ||
+      ausbildung.escoSkills.isNotEmpty;
+  final beruf = (hasAusbildung && ausbildung.targetOccupation.isNotEmpty)
+      ? ausbildung.targetOccupation
+      : _targetPosition(p, ausbildung, isAusbildungCv);
+  if (beruf.trim().isEmpty) return '';
+  return hasAusbildung
+      ? 'Bewerbung um einen Ausbildungsplatz als ${beruf.trim()}'
+      : 'Bewerbung als ${beruf.trim()}';
+}
+
+// Trimmed value, or '' for blank/placeholder values, so a missing field
+// never leaves an empty line or a dash in the PDF.
+String _deckblattClean(String? v) {
+  final t = (v ?? '').trim();
+  return t == '\u2014' ? '' : t;
 }
 
 // ── Ausbildung questionnaire data (read directly from SharedPreferences) ───
@@ -3171,7 +3199,7 @@ Future<Uint8List> _buildAnschreibenWeissBraunSchlicht(UserProfile p, _Ausbildung
 // ─────────────────────────────────────────────────────────────────────────────
 
 Future<Uint8List> _buildDeckblattBraunIconSet(
-    UserProfile p, String position, List<String> attachments) async {
+    UserProfile p, List<String> unterlagen, String subtitle) async {
   final fonts = await _loadFonts();
   final photo = await _loadPhoto(p);
   const darkText = PdfColor.fromInt(0xFF1A1A1A);
@@ -3180,6 +3208,48 @@ Future<Uint8List> _buildDeckblattBraunIconSet(
   final pageW = PdfPageFormat.a4.width;
   final pageH = PdfPageFormat.a4.height;
   final panelW = pageW * 0.36;
+
+  // Only fields that exist are printed; nothing is left as an empty line.
+  final name = _deckblattClean(p.fullName);
+  final addressLines = [_deckblattClean(p.street), _deckblattClean(p.city)]
+      .where((s) => s.isNotEmpty)
+      .join('\n');
+  final phone = _deckblattClean(p.phone);
+  final email = _deckblattClean(p.email);
+  final dob = _deckblattClean(p.dobFormatted);
+  final items =
+      unterlagen.map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+
+  // Photo circle, or a neutral circle with initials when there is no photo.
+  // Initials are only drawn for Latin letters (the bundled font has no
+  // Pashto/Dari glyphs); otherwise the neutral circle stays plain.
+  final initials = name
+      .split(RegExp(r'\s+'))
+      .where((w) => w.isNotEmpty)
+      .map((w) => String.fromCharCode(w.runes.first).toUpperCase())
+      .toList();
+  final initialsText = initials.isEmpty
+      ? ''
+      : (initials.length == 1 ? initials.first : initials.first + initials.last);
+  final latinInitials =
+      initialsText.isNotEmpty && initialsText.runes.every((r) => r < 0x250);
+  final pw.Widget avatar = photo != null
+      ? _photoCircle(photo: photo, size: 96, ringColor: PdfColors.white)
+      : pw.Container(
+          width: 96,
+          height: 96,
+          alignment: pw.Alignment.center,
+          decoration: pw.BoxDecoration(
+            shape: pw.BoxShape.circle,
+            color: PdfColor.fromHex('#D9D2C8'),
+            border: pw.Border.all(color: PdfColors.white, width: 3.5),
+          ),
+          child: latinInitials
+              ? pw.Text(initialsText,
+                  style: pw.TextStyle(
+                      font: fonts.bold, fontSize: 30, color: _brownAccent))
+              : null,
+        );
 
   doc.addPage(
     pw.Page(
@@ -3195,46 +3265,51 @@ Future<Uint8List> _buildDeckblattBraunIconSet(
             child: pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
-                if (photo != null) ...[
-                  _photoCircle(photo: photo, size: 96, ringColor: PdfColors.white),
-                  pw.SizedBox(height: 20),
-                ],
-                pw.Text(p.fullName,
-                    style: pw.TextStyle(
-                        font: fonts.bold, fontSize: 20, color: _brownAccent, height: 1.15)),
-                if (position.isNotEmpty) ...[
-                  pw.SizedBox(height: 6),
-                  pw.Text(position,
-                      style: pw.TextStyle(font: fonts.regular, fontSize: 10, color: PdfColors.grey700)),
+                avatar,
+                pw.SizedBox(height: 20),
+                if (name.isNotEmpty)
+                  pw.Text(name,
+                      style: pw.TextStyle(
+                          font: fonts.bold, fontSize: 22, color: _brownAccent, height: 1.15)),
+                if (subtitle.isNotEmpty) ...[
+                  pw.SizedBox(height: 8),
+                  pw.Text(subtitle,
+                      style: pw.TextStyle(
+                          font: fonts.regular, fontSize: 10, color: PdfColors.grey700, height: 1.3)),
                 ],
                 pw.SizedBox(height: 24),
-                _brownIconContactLine(_brownIconPin(),
-                    p.fullAddress == '—' ? '' : p.fullAddress, fonts, darkText),
-                _brownIconContactLine(_brownIconPhone(), p.phone, fonts, darkText),
-                _brownIconContactLine(_brownIconMail(), p.email, fonts, darkText),
+                _brownIconContactLine(_brownIconPin(), addressLines, fonts, darkText),
+                _brownIconContactLine(_brownIconPhone(), phone, fonts, darkText),
+                _brownIconContactLine(_brownIconMail(), email, fonts, darkText),
+                if (dob.isNotEmpty)
+                  pw.Padding(
+                    padding: const pw.EdgeInsets.only(bottom: 7),
+                    child: pw.Text('Geboren: $dob',
+                        style: pw.TextStyle(font: fonts.regular, fontSize: 8.7, color: darkText)),
+                  ),
               ],
             ),
           ),
-          pw.Positioned(
-            left: panelW + 32,
-            right: 32,
-            bottom: 48,
-            child: pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: [
-                pw.Text('Bewerbungsunterlagen',
-                    style: pw.TextStyle(font: fonts.bold, fontSize: 12, color: darkText)),
-                pw.SizedBox(height: 10),
-                pw.Text('Anlagen:',
-                    style: pw.TextStyle(font: fonts.bold, fontSize: 9.5, color: _brownAccent)),
-                pw.SizedBox(height: 4),
-                pw.Text(
-                    ['Anschreiben', 'Lebenslauf', ...attachments.where((a) => a != 'Lebenslauf')]
-                        .join(', '),
-                    style: pw.TextStyle(font: fonts.regular, fontSize: 10, color: darkText)),
-              ],
+          if (items.isNotEmpty)
+            pw.Positioned(
+              left: panelW + 32,
+              right: 32,
+              bottom: 48,
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Text('Unterlagen:',
+                      style: pw.TextStyle(font: fonts.bold, fontSize: 11, color: _brownAccent)),
+                  pw.SizedBox(height: 6),
+                  for (final item in items)
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.only(bottom: 3),
+                      child: pw.Text('•  $item',
+                          style: pw.TextStyle(font: fonts.regular, fontSize: 10.5, color: darkText)),
+                    ),
+                ],
+              ),
             ),
-          ),
         ],
       ),
     ),
