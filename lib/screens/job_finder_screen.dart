@@ -1,6 +1,9 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'dart:ui';
 
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
@@ -14,6 +17,15 @@ import '../utils/location_helpers.dart';
 import '../utils/navigation_helpers.dart';
 
 // ── Data models ───────────────────────────────────────────────────────────────
+
+// Why a job list request failed, so the UI can show a specific message
+// instead of one generic "check your connection" for every failure.
+enum _JobsErrorKind { noConnection, timeout, unavailable }
+
+class _JobsException implements Exception {
+  final _JobsErrorKind kind;
+  const _JobsException(this.kind);
+}
 
 class _Job {
   final String title;
@@ -343,19 +355,40 @@ class _JobFinderScreenState extends State<JobFinderScreen> {
     if (searchTerm.isNotEmpty) params['was'] = searchTerm;
     params['arbeitszeit'] = _selectedJobType;
 
-    final uri      = Uri.parse(_kBaseUrl).replace(queryParameters: params);
-    final response = await http
-        .get(uri, headers: {'X-API-Key': _kApiKey})
-        .timeout(const Duration(seconds: 15));
+    final uri = Uri.parse(_kBaseUrl).replace(queryParameters: params);
+    // Logged without the query string, which holds the city and search term.
+    final logUrl = '${uri.scheme}://${uri.host}${uri.path}';
+    int? status;
+    try {
+      final response = await http
+          .get(uri, headers: {'X-API-Key': _kApiKey})
+          .timeout(const Duration(seconds: 15));
+      status = response.statusCode;
 
-    if (response.statusCode == 200) {
-      final data  = jsonDecode(response.body) as Map<String, dynamic>;
-      final items = data['ergebnisliste'] as List<dynamic>? ?? [];
-      return items
-          .map((j) => _Job.fromJson(j as Map<String, dynamic>))
-          .toList();
+      if (response.statusCode == 200) {
+        final data  = jsonDecode(response.body) as Map<String, dynamic>;
+        final items = data['ergebnisliste'] as List<dynamic>? ?? [];
+        return items
+            .map((j) => _Job.fromJson(j as Map<String, dynamic>))
+            .toList();
+      }
+      throw const _JobsException(_JobsErrorKind.unavailable);
+    } catch (e) {
+      // 401, 403, 404, 429, 5xx, a bad JSON body, a changed response format
+      // and anything unexpected all end up as "unavailable"; only a missing
+      // network and a timeout get their own message.
+      final kind = e is _JobsException
+          ? e.kind
+          : e is TimeoutException
+              ? _JobsErrorKind.timeout
+              : (e is SocketException || e is http.ClientException)
+                  ? _JobsErrorKind.noConnection
+                  : _JobsErrorKind.unavailable;
+      if (kDebugMode) {
+        debugPrint('[jobs] ${e.runtimeType} status=$status url=$logUrl -> $kind');
+      }
+      throw _JobsException(kind);
     }
-    throw Exception('HTTP ${response.statusCode}');
   }
 
   void _refetch() {
@@ -448,29 +481,70 @@ class _JobFinderScreenState extends State<JobFinderScreen> {
     }
   }
 
-  String get _errorLabel {
+  String _msg({
+    required String en,
+    required String de,
+    required String ps,
+    required String fa,
+  }) {
     switch (_lang) {
-      case 'ps': return 'کارونه لوډ نشول. خپل انټرنیټ وګورئ.';
-      case 'fa': return 'بارگذاری ناموفق بود. اتصال را بررسی کنید.';
-      default:   return 'Could not load jobs. Check your connection.';
+      case 'ps': return ps;
+      case 'fa': return fa;
+      case 'de': return de;
+      default:   return en;
     }
   }
 
-  String get _emptyLabel {
-    switch (_lang) {
-      case 'ps': return 'په دې سیمه کې کارونه ونه موندل شول';
-      case 'fa': return 'در این منطقه کاری یافت نشد';
-      default:   return 'No jobs found in this area';
+  _JobsErrorKind _errorKind(Object? error) =>
+      error is _JobsException ? error.kind : _JobsErrorKind.unavailable;
+
+  IconData _errorIcon(_JobsErrorKind kind) {
+    switch (kind) {
+      case _JobsErrorKind.noConnection: return Icons.wifi_off_rounded;
+      case _JobsErrorKind.timeout:      return Icons.hourglass_bottom_rounded;
+      case _JobsErrorKind.unavailable:  return Icons.cloud_off_rounded;
     }
   }
 
-  String get _emptySuggestion {
-    switch (_lang) {
-      case 'ps': return 'بل ښار یا لوی واټن هڅه وکړئ';
-      case 'fa': return 'شهر دیگری یا شعاع بیشتر امتحان کنید';
-      default:   return 'Try a different city or a larger radius';
+  String _errorMessage(_JobsErrorKind kind) {
+    switch (kind) {
+      case _JobsErrorKind.noConnection:
+        return _msg(
+          en: 'No internet connection. Please check your connection and try again.',
+          de: 'Keine Internetverbindung. Bitte prüfe deine Verbindung und versuche es erneut.',
+          ps: 'انټرنیټ نشته. خپل اتصال وګورئ او بیا هڅه وکړئ.',
+          fa: 'اتصال اینترنت وجود ندارد. اتصال خود را بررسی کنید و دوباره تلاش کنید.',
+        );
+      case _JobsErrorKind.timeout:
+        return _msg(
+          en: 'The server is too slow. Please try again.',
+          de: 'Der Server antwortet zu langsam. Bitte versuche es erneut.',
+          ps: 'سرور ډېر ورو ځواب ورکوي. بیا هڅه وکړئ.',
+          fa: 'سرور خیلی کند پاسخ می‌دهد. دوباره تلاش کنید.',
+        );
+      case _JobsErrorKind.unavailable:
+        return _msg(
+          en: 'The job service is temporarily unavailable. Please try again later.',
+          de: 'Der Jobdienst ist vorübergehend nicht erreichbar. Bitte versuche es später erneut.',
+          ps: 'د کارونو خدمت اوس مهال نشته. وروسته بیا هڅه وکړئ.',
+          fa: 'سرویس کاریابی موقتا در دسترس نیست. بعدا دوباره تلاش کنید.',
+        );
     }
   }
+
+  String get _emptyLabel => _msg(
+        en: 'No jobs found',
+        de: 'Keine Stellen gefunden',
+        ps: 'کارونه ونه موندل شول',
+        fa: 'کاری یافت نشد',
+      );
+
+  String get _emptySuggestion => _msg(
+        en: 'Try another distance or job type',
+        de: 'Versuche einen anderen Umkreis oder eine andere Stellenart',
+        ps: 'بل واټن یا د کار ډول هڅه وکړئ',
+        fa: 'فاصله یا نوع کار دیگری را امتحان کنید',
+      );
 
   String get _retryLabel {
     switch (_lang) {
@@ -741,7 +815,7 @@ class _JobFinderScreenState extends State<JobFinderScreen> {
                                 ConnectionState.waiting) {
                               return _buildLoading();
                             }
-                            if (snap.hasError) return _buildError();
+                            if (snap.hasError) return _buildError(snap.error);
                             final jobs = snap.data ?? [];
                             if (jobs.isEmpty) return _buildEmpty();
                             return _buildJobList(jobs, isRtl);
@@ -1289,7 +1363,8 @@ class _JobFinderScreenState extends State<JobFinderScreen> {
 
   // ── Error state ────────────────────────────────────────────────────────────
 
-  Widget _buildError() {
+  Widget _buildError(Object? error) {
+    final kind = _errorKind(error);
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 40),
@@ -1300,11 +1375,10 @@ class _JobFinderScreenState extends State<JobFinderScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.wifi_off_rounded,
-                  color: Colors.redAccent, size: 48),
+              Icon(_errorIcon(kind), color: Colors.redAccent, size: 48),
               const SizedBox(height: 16),
               Text(
-                _errorLabel,
+                _errorMessage(kind),
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   color: _navy,
