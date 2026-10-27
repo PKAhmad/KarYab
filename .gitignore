@@ -49,3 +49,11 @@ karyab-*.json
 karyab-496122-6837a1296600.json
 karyab-496122-f43ef7bee904.json
 lib/config/secrets.dart
+
+# Android signing keys and n8n tooling (may contain secrets/tokens)
+android/key.properties
+*.jks
+*.keystore
+workflow/
+.n8nac/
+n8nac-config.json
