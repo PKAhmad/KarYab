@@ -418,9 +418,10 @@ class _JobApplyScreenState extends State<JobApplyScreen>
 
   String get _coverLetterButtonLabel {
     switch (_language) {
-      case 'ps': return 'د پوښتنلیک لیک جوړ کړئ';
-      case 'fa': return 'ایجاد نامه پوششی';
-      default:   return 'Create Cover Letter';
+      case 'ps': return 'د دې دندې لپاره د پوښتنلیک لیک جوړ کړئ';
+      case 'fa': return 'ایجاد نامه پوششی برای این شغل';
+      case 'de': return 'Anschreiben für diese Stelle erstellen';
+      default:   return 'Create cover letter for this job';
     }
   }
 
@@ -1639,12 +1640,17 @@ class _JobApplyScreenState extends State<JobApplyScreen>
                 const Icon(Icons.description_rounded,
                     color: Colors.white, size: 18),
                 const SizedBox(width: 8),
-                Text(
-                  _coverLetterButtonLabel,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
+                Flexible(
+                  child: Text(
+                    _coverLetterButtonLabel,
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ],

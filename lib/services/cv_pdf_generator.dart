@@ -74,10 +74,73 @@ Future<Uint8List> generateCv(
 // _loadAusbildungData() - callers only pass the UserProfile and template.
 // ─────────────────────────────────────────────────────────────────────────────
 
+// The four editable text sections of an Anschreiben. Salutation, closing
+// greeting, signature and sender/recipient blocks are not part of this and
+// stay fixed in every template.
+class AnschreibenTexts {
+  final String subject;
+  final String opening;
+  final String middle;
+  final String closing;
+
+  const AnschreibenTexts({
+    required this.subject,
+    required this.opening,
+    required this.middle,
+    required this.closing,
+  });
+
+  // Paragraphs in print order; a section the user emptied is skipped so it
+  // leaves no blank gap in the letter.
+  List<String> get body =>
+      [opening, middle, closing].where((s) => s.trim().isNotEmpty).toList();
+}
+
+// Composes one fresh random phrase-bank pick per section, using the same
+// position/company resolution as generateAnschreiben(). Every call rolls new
+// variants, which is what the editor's "Regenerate" button relies on.
+Future<AnschreibenTexts> composeAnschreibenTexts(
+  UserProfile profile, {
+  bool isAusbildungCv = false,
+  String? jobTitleOverride,
+}) async {
+  final ausbildung = await _loadAusbildungData();
+  final position = _resolveAnschreibenPosition(
+      profile, ausbildung, isAusbildungCv, jobTitleOverride);
+  return _composeAnschreibenTexts(profile, ausbildung, position, isAusbildungCv);
+}
+
+String _resolveAnschreibenPosition(UserProfile profile, _AusbildungData ausbildung,
+    bool isAusbildungCv, String? jobTitleOverride) {
+  return (jobTitleOverride != null && jobTitleOverride.trim().isNotEmpty)
+      ? jobTitleOverride.trim()
+      : _targetPosition(profile, ausbildung, isAusbildungCv);
+}
+
+AnschreibenTexts _composeAnschreibenTexts(UserProfile profile,
+    _AusbildungData ausbildung, String position, bool isAusbildungCv) {
+  final rng = Random();
+  final body = _anschreibenBody(profile, ausbildung, position, isAusbildungCv, rng);
+  return AnschreibenTexts(
+    subject: _anschreibenSubject(position, isAusbildungCv, rng),
+    opening: body[0],
+    middle: body[1],
+    closing: body[2],
+  );
+}
+
 Future<Uint8List> generateAnschreiben(
   UserProfile profile,
   AnschreibenTemplate template, {
   bool isAusbildungCv = false,
+  // Optional pre-composed (and possibly user-edited) section texts. When all
+  // four are null the letter composes its own random phrase-bank text as
+  // before; when any is set, that section is used verbatim and the others
+  // are composed as usual.
+  String? subjectText,
+  String? openingText,
+  String? middleText,
+  String? closingText,
   // Optional per-job overrides - set when the letter is opened from a
   // specific job posting (e.g. an Ausbildung listing's "Cover Letter
   // erstellen" button) so the generated text is relevant to that exact
@@ -93,19 +156,33 @@ Future<Uint8List> generateAnschreiben(
       : resolvedPosition;
   final companyName = companyNameOverride?.trim() ?? '';
   final attachments = await _loadAttachments();
+  AnschreibenTexts? texts;
+  if (subjectText != null ||
+      openingText != null ||
+      middleText != null ||
+      closingText != null) {
+    final base =
+        _composeAnschreibenTexts(profile, ausbildung, position, isAusbildungCv);
+    texts = AnschreibenTexts(
+      subject: subjectText ?? base.subject,
+      opening: openingText ?? base.opening,
+      middle: middleText ?? base.middle,
+      closing: closingText ?? base.closing,
+    );
+  }
   switch (template) {
     case AnschreibenTemplate.blauMinimal:
-      return _buildAnschreibenBlauMinimal(profile, ausbildung, position, isAusbildungCv, attachments, companyName);
+      return _buildAnschreibenBlauMinimal(profile, ausbildung, position, isAusbildungCv, attachments, companyName, texts);
     case AnschreibenTemplate.beigeEleganz:
-      return _buildAnschreibenBeigeEleganz(profile, ausbildung, position, isAusbildungCv, attachments, companyName);
+      return _buildAnschreibenBeigeEleganz(profile, ausbildung, position, isAusbildungCv, attachments, companyName, texts);
     case AnschreibenTemplate.boldHeadlineGrau:
-      return _buildAnschreibenBoldHeadlineGrau(profile, ausbildung, position, isAusbildungCv, attachments, companyName);
+      return _buildAnschreibenBoldHeadlineGrau(profile, ausbildung, position, isAusbildungCv, attachments, companyName, texts);
     case AnschreibenTemplate.braunIconSet:
-      return _buildAnschreibenBraunIconSet(profile, ausbildung, position, isAusbildungCv, attachments, companyName);
+      return _buildAnschreibenBraunIconSet(profile, ausbildung, position, isAusbildungCv, attachments, companyName, texts);
     case AnschreibenTemplate.grauSchlicht:
-      return _buildAnschreibenGrauSchlicht(profile, ausbildung, position, isAusbildungCv, attachments, companyName);
+      return _buildAnschreibenGrauSchlicht(profile, ausbildung, position, isAusbildungCv, attachments, companyName, texts);
     case AnschreibenTemplate.weissBraunSchlicht:
-      return _buildAnschreibenWeissBraunSchlicht(profile, ausbildung, position, isAusbildungCv, attachments, companyName);
+      return _buildAnschreibenWeissBraunSchlicht(profile, ausbildung, position, isAusbildungCv, attachments, companyName, texts);
   }
 }
 
@@ -2482,13 +2559,14 @@ pw.Widget _anschreibenAttachments(
 // ─────────────────────────────────────────────────────────────────────────────
 
 Future<Uint8List> _buildAnschreibenBlauMinimal(UserProfile p, _AusbildungData ausbildung,
-    String position, bool isAusbildungCv, List<String> attachments, String companyName) async {
+    String position, bool isAusbildungCv, List<String> attachments, String companyName,
+    [AnschreibenTexts? texts]) async {
   final fonts = await _loadFonts();
   final blue = PdfColor.fromHex('#1A4A8A');
   final doc = pw.Document(title: 'Anschreiben – ${p.fullName}', author: 'KarYab');
   final rng = Random();
-  final subject = _anschreibenSubject(position, isAusbildungCv, rng);
-  final body = _anschreibenBody(p, ausbildung, position, isAusbildungCv, rng);
+  final subject = texts?.subject ?? _anschreibenSubject(position, isAusbildungCv, rng);
+  final body = texts?.body ?? _anschreibenBody(p, ausbildung, position, isAusbildungCv, rng);
   final companyLine = companyName.isNotEmpty ? companyName : '[Unternehmen]';
 
   doc.addPage(
@@ -2560,13 +2638,14 @@ Future<Uint8List> _buildAnschreibenBlauMinimal(UserProfile p, _AusbildungData au
 // ─────────────────────────────────────────────────────────────────────────────
 
 Future<Uint8List> _buildAnschreibenBeigeEleganz(UserProfile p, _AusbildungData ausbildung,
-    String position, bool isAusbildungCv, List<String> attachments, String companyName) async {
+    String position, bool isAusbildungCv, List<String> attachments, String companyName,
+    [AnschreibenTexts? texts]) async {
   final fonts = await _loadFonts();
   final beige = PdfColor.fromHex('#F3ECDF');
   final doc = pw.Document(title: 'Anschreiben – ${p.fullName}', author: 'KarYab');
   final rng = Random();
-  final subject = _anschreibenSubject(position, isAusbildungCv, rng);
-  final body = _anschreibenBody(p, ausbildung, position, isAusbildungCv, rng);
+  final subject = texts?.subject ?? _anschreibenSubject(position, isAusbildungCv, rng);
+  final body = texts?.body ?? _anschreibenBody(p, ausbildung, position, isAusbildungCv, rng);
   final companyLine = companyName.isNotEmpty ? companyName : '[Unternehmen]';
   final pageW = PdfPageFormat.a4.width;
 
@@ -2672,13 +2751,14 @@ Future<Uint8List> _buildAnschreibenBeigeEleganz(UserProfile p, _AusbildungData a
 // ─────────────────────────────────────────────────────────────────────────────
 
 Future<Uint8List> _buildAnschreibenBoldHeadlineGrau(UserProfile p, _AusbildungData ausbildung,
-    String position, bool isAusbildungCv, List<String> attachments, String companyName) async {
+    String position, bool isAusbildungCv, List<String> attachments, String companyName,
+    [AnschreibenTexts? texts]) async {
   final fonts = await _loadFonts();
   const darkGrey = PdfColor.fromInt(0xFF2E2E2E);
   final doc = pw.Document(title: 'Anschreiben – ${p.fullName}', author: 'KarYab');
   final rng = Random();
-  final subject = _anschreibenSubject(position, isAusbildungCv, rng);
-  final body = _anschreibenBody(p, ausbildung, position, isAusbildungCv, rng);
+  final subject = texts?.subject ?? _anschreibenSubject(position, isAusbildungCv, rng);
+  final body = texts?.body ?? _anschreibenBody(p, ausbildung, position, isAusbildungCv, rng);
   final companyLine = companyName.isNotEmpty ? companyName : '[Unternehmen]';
 
   final nameParts = p.fullName.trim().split(RegExp(r'\s+'));
@@ -2753,13 +2833,14 @@ Future<Uint8List> _buildAnschreibenBoldHeadlineGrau(UserProfile p, _AusbildungDa
 // ─────────────────────────────────────────────────────────────────────────────
 
 Future<Uint8List> _buildAnschreibenBraunIconSet(UserProfile p, _AusbildungData ausbildung,
-    String position, bool isAusbildungCv, List<String> attachments, String companyName) async {
+    String position, bool isAusbildungCv, List<String> attachments, String companyName,
+    [AnschreibenTexts? texts]) async {
   final fonts = await _loadFonts();
   const darkText = PdfColor.fromInt(0xFF1A1A1A);
   final doc = pw.Document(title: 'Anschreiben – ${p.fullName}', author: 'KarYab');
   final rng = Random();
-  final subject = _anschreibenSubject(position, isAusbildungCv, rng);
-  final body = _anschreibenBody(p, ausbildung, position, isAusbildungCv, rng);
+  final subject = texts?.subject ?? _anschreibenSubject(position, isAusbildungCv, rng);
+  final body = texts?.body ?? _anschreibenBody(p, ausbildung, position, isAusbildungCv, rng);
   final companyLine = companyName.isNotEmpty ? companyName : '[Unternehmen]';
 
   final pageW = PdfPageFormat.a4.width;
@@ -2850,13 +2931,14 @@ Future<Uint8List> _buildAnschreibenBraunIconSet(UserProfile p, _AusbildungData a
 // ─────────────────────────────────────────────────────────────────────────────
 
 Future<Uint8List> _buildAnschreibenGrauSchlicht(UserProfile p, _AusbildungData ausbildung,
-    String position, bool isAusbildungCv, List<String> attachments, String companyName) async {
+    String position, bool isAusbildungCv, List<String> attachments, String companyName,
+    [AnschreibenTexts? texts]) async {
   final fonts = await _loadFonts();
   const darkText = PdfColor.fromInt(0xFF1A1A1A);
   final doc = pw.Document(title: 'Anschreiben – ${p.fullName}', author: 'KarYab');
   final rng = Random();
-  final subject = _anschreibenSubject(position, isAusbildungCv, rng);
-  final body = _anschreibenBody(p, ausbildung, position, isAusbildungCv, rng);
+  final subject = texts?.subject ?? _anschreibenSubject(position, isAusbildungCv, rng);
+  final body = texts?.body ?? _anschreibenBody(p, ausbildung, position, isAusbildungCv, rng);
   final companyLine = companyName.isNotEmpty ? companyName : '[Unternehmen]';
   // Explicit bounded width (page width minus this function's own 48+48
   // left/right margin) instead of `double.infinity` - a pw.Container with
@@ -2968,14 +3050,15 @@ Future<Uint8List> _buildAnschreibenGrauSchlicht(UserProfile p, _AusbildungData a
 // ─────────────────────────────────────────────────────────────────────────────
 
 Future<Uint8List> _buildAnschreibenWeissBraunSchlicht(UserProfile p, _AusbildungData ausbildung,
-    String position, bool isAusbildungCv, List<String> attachments, String companyName) async {
+    String position, bool isAusbildungCv, List<String> attachments, String companyName,
+    [AnschreibenTexts? texts]) async {
   final fonts = await _loadFonts();
   const darkText = PdfColor.fromInt(0xFF1A1A1A);
   final panelGrey = PdfColor.fromHex('#EFEFEF');
   final doc = pw.Document(title: 'Anschreiben – ${p.fullName}', author: 'KarYab');
   final rng = Random();
-  final subject = _anschreibenSubject(position, isAusbildungCv, rng);
-  final body = _anschreibenBody(p, ausbildung, position, isAusbildungCv, rng);
+  final subject = texts?.subject ?? _anschreibenSubject(position, isAusbildungCv, rng);
+  final body = texts?.body ?? _anschreibenBody(p, ausbildung, position, isAusbildungCv, rng);
   final companyLine = companyName.isNotEmpty ? companyName : '[Unternehmen]';
 
   final pageW = PdfPageFormat.a4.width;

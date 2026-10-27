@@ -70,10 +70,24 @@ class _LetterDocumentScreenState extends State<LetterDocumentScreen> {
   AnschreibenTemplate _anschreibenTemplate = AnschreibenTemplate.blauMinimal;
   DeckblattTemplate _deckblattTemplate = DeckblattTemplate.braunIconSet;
 
+  // Cover letter only: the four editable sections, prefilled from the
+  // phrase bank. _generated keeps the last composed text so we can tell
+  // whether the user changed anything before a regenerate overwrites it.
+  final _subjectCtrl = TextEditingController();
+  final _openingCtrl = TextEditingController();
+  final _middleCtrl = TextEditingController();
+  final _closingCtrl = TextEditingController();
+  AnschreibenTexts? _generated;
+  bool _loadingTexts = false;
+
+  bool get _isCoverLetter => widget.docType == LetterDocType.coverLetter;
+  bool get _isRtl => _lang == 'ps' || _lang == 'fa';
+
   @override
   void initState() {
     super.initState();
     _lang = widget.language;
+    if (_isCoverLetter) _composeTexts();
     AnalyticsService().logScreen(
         widget.docType == LetterDocType.coverLetter
             ? 'cover_letter'
@@ -83,6 +97,81 @@ class _LetterDocumentScreenState extends State<LetterDocumentScreen> {
     } else {
       _loadDeckblattTemplate();
     }
+  }
+
+  @override
+  void dispose() {
+    _subjectCtrl.dispose();
+    _openingCtrl.dispose();
+    _middleCtrl.dispose();
+    _closingCtrl.dispose();
+    super.dispose();
+  }
+
+  // Picks fresh random phrase-bank variants and puts them into the fields.
+  Future<void> _composeTexts() async {
+    setState(() => _loadingTexts = true);
+    try {
+      final t = await composeAnschreibenTexts(
+        widget.profile,
+        isAusbildungCv: widget.isAusbildungCv,
+        jobTitleOverride: widget.jobTitle,
+      );
+      if (!mounted) return;
+      _generated = t;
+      _subjectCtrl.text = t.subject;
+      _openingCtrl.text = t.opening;
+      _middleCtrl.text = t.middle;
+      _closingCtrl.text = t.closing;
+    } finally {
+      if (mounted) setState(() => _loadingTexts = false);
+    }
+  }
+
+  bool get _hasEdits {
+    final g = _generated;
+    if (g == null) return false;
+    return _subjectCtrl.text != g.subject ||
+        _openingCtrl.text != g.opening ||
+        _middleCtrl.text != g.middle ||
+        _closingCtrl.text != g.closing;
+  }
+
+  Future<void> _regenerate() async {
+    if (_loadingTexts || _saving) return;
+    if (_hasEdits) {
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => Directionality(
+          textDirection: _isRtl ? TextDirection.rtl : TextDirection.ltr,
+          child: AlertDialog(
+            backgroundColor: Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+            title: Text(_replaceTitle,
+                style: const TextStyle(
+                    color: _navy, fontSize: 16, fontWeight: FontWeight.w800)),
+            content: Text(_replaceBody,
+                style: const TextStyle(color: _navy, fontSize: 13, height: 1.4)),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: Text(_cancelLabel,
+                    style: const TextStyle(
+                        color: _navy, fontWeight: FontWeight.w700)),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: Text(_replaceLabel,
+                    style: const TextStyle(
+                        color: _navy, fontWeight: FontWeight.w800)),
+              ),
+            ],
+          ),
+        ),
+      );
+      if (ok != true || !mounted) return;
+    }
+    await _composeTexts();
   }
 
   Future<void> _loadAnschreibenTemplate() async {
@@ -130,6 +219,11 @@ class _LetterDocumentScreenState extends State<LetterDocumentScreen> {
             isAusbildungCv: widget.isAusbildungCv,
             jobTitleOverride: widget.jobTitle,
             companyNameOverride: widget.companyName,
+            // Exactly what is in the fields, including the user's edits.
+            subjectText: _subjectCtrl.text.trim(),
+            openingText: _openingCtrl.text.trim(),
+            middleText: _middleCtrl.text.trim(),
+            closingText: _closingCtrl.text.trim(),
           )
         : generateDeckblatt(widget.profile, _deckblattTemplate);
   }
@@ -183,6 +277,94 @@ class _LetterDocumentScreenState extends State<LetterDocumentScreen> {
       }
     }
     return 'Deckblatt';
+  }
+
+  String get _createPdfLabel {
+    switch (_lang) {
+      case 'ps': return 'PDF جوړ کړئ';
+      case 'fa': return 'ساخت PDF';
+      default:   return 'Create PDF';
+    }
+  }
+
+  String get _subjectLabel {
+    switch (_lang) {
+      case 'ps': return 'Betreff (موضوع)';
+      case 'fa': return 'Betreff (موضوع)';
+      default:   return 'Betreff (Subject)';
+    }
+  }
+
+  String get _openingLabel {
+    switch (_lang) {
+      case 'ps': return 'پیل';
+      case 'fa': return 'مقدمه';
+      default:   return 'Opening';
+    }
+  }
+
+  String get _skillsLabel {
+    switch (_lang) {
+      case 'ps': return 'د وړتیاوو پاراګراف';
+      case 'fa': return 'بند مهارت‌ها';
+      default:   return 'Skills paragraph';
+    }
+  }
+
+  String get _closingLabel {
+    switch (_lang) {
+      case 'ps': return 'پای';
+      case 'fa': return 'پایان';
+      default:   return 'Closing';
+    }
+  }
+
+  String get _regenerateLabel {
+    switch (_lang) {
+      case 'ps': return 'نوی متن جوړ کړئ';
+      case 'fa': return 'ساخت متن جدید';
+      default:   return 'Regenerate';
+    }
+  }
+
+  String get _replaceTitle {
+    switch (_lang) {
+      case 'ps': return 'ستاسو بدلونونه بدل شي؟';
+      case 'fa': return 'تغییرات شما جایگزین شود؟';
+      default:   return 'Replace your changes?';
+    }
+  }
+
+  String get _replaceBody {
+    switch (_lang) {
+      case 'ps': return 'نوی متن به هغه متن بدل کړي چې تاسو سم کړی دی.';
+      case 'fa': return 'متن جدید جایگزین متنی می‌شود که ویرایش کرده‌اید.';
+      default:   return 'A new text will replace the text you edited.';
+    }
+  }
+
+  String get _cancelLabel {
+    switch (_lang) {
+      case 'ps': return 'لغوه کړئ';
+      case 'fa': return 'لغو';
+      default:   return 'Cancel';
+    }
+  }
+
+  String get _replaceLabel {
+    switch (_lang) {
+      case 'ps': return 'بدل کړئ';
+      case 'fa': return 'جایگزین کن';
+      default:   return 'Replace';
+    }
+  }
+
+  String get _germanHint {
+    switch (_lang) {
+      case 'ps': return 'د لیک متن تل په آلماني دی. تاسو کولی شئ هر ساحه سم کړئ.';
+      case 'fa': return 'متن نامه همیشه به آلمانی است. می‌توانید هر بخش را ویرایش کنید.';
+      default:   return 'The letter text is always German. You can edit every section.';
+    }
   }
 
   String get _downloadLabel {
@@ -326,30 +508,33 @@ class _LetterDocumentScreenState extends State<LetterDocumentScreen> {
             ],
           ),
           const SizedBox(height: 12),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(14),
-            child: SizedBox(
-              height: 440,
-              // Keyed to whichever template applies to this docType, so the
-              // preview regenerates when the user picks a different one.
-              child: PdfPreview(
-                key: ValueKey(widget.docType == LetterDocType.coverLetter
-                    ? _anschreibenTemplate.name
-                    : _deckblattTemplate.name),
-                build: _buildBytes,
-                canChangeOrientation: false,
-                canChangePageFormat: false,
-                canDebug: false,
-                pdfFileName: _pdfFilename,
-                loadingWidget: const Center(
-                  child: CircularProgressIndicator(color: _green),
+          if (_isCoverLetter)
+            _buildLetterEditor()
+          else
+            ClipRRect(
+              borderRadius: BorderRadius.circular(14),
+              child: SizedBox(
+                height: 440,
+                // Keyed to the Deckblatt template, so the preview
+                // regenerates when the user picks a different one.
+                child: PdfPreview(
+                  key: ValueKey(_deckblattTemplate.name),
+                  build: _buildBytes,
+                  canChangeOrientation: false,
+                  canChangePageFormat: false,
+                  canDebug: false,
+                  pdfFileName: _pdfFilename,
+                  loadingWidget: const Center(
+                    child: CircularProgressIndicator(color: _green),
+                  ),
                 ),
               ),
             ),
-          ),
           const SizedBox(height: 12),
           GestureDetector(
-            onTap: _saving ? null : _download,
+            onTap: (_saving || (_isCoverLetter && _loadingTexts))
+                ? null
+                : _download,
             child: Container(
               width: double.infinity,
               height: 52,
@@ -379,11 +564,15 @@ class _LetterDocumentScreenState extends State<LetterDocumentScreen> {
                           color: _green, strokeWidth: 2.5),
                     )
                   else
-                    const Icon(Icons.download_rounded,
-                        color: Colors.white, size: 18),
+                    Icon(
+                        _isCoverLetter
+                            ? Icons.picture_as_pdf_rounded
+                            : Icons.download_rounded,
+                        color: Colors.white,
+                        size: 18),
                   const SizedBox(width: 8),
                   Text(
-                    _downloadLabel,
+                    _isCoverLetter ? _createPdfLabel : _downloadLabel,
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 14,
@@ -391,6 +580,125 @@ class _LetterDocumentScreenState extends State<LetterDocumentScreen> {
                     ),
                   ),
                 ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Editable letter text: Betreff, Opening, Skills paragraph, Closing.
+  // Salutation, signature and sender/recipient blocks are fixed in the PDF.
+  Widget _buildLetterEditor() {
+    if (_loadingTexts && _generated == null) {
+      return const SizedBox(
+        height: 160,
+        child: Center(child: CircularProgressIndicator(color: _green)),
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          _germanHint,
+          textDirection: _isRtl ? TextDirection.rtl : TextDirection.ltr,
+          style: TextStyle(
+              color: _navy.withOpacity(0.65), fontSize: 12, height: 1.4),
+        ),
+        const SizedBox(height: 12),
+        _letterField(_subjectLabel, _subjectCtrl, minLines: 1),
+        _letterField(_openingLabel, _openingCtrl, minLines: 3),
+        _letterField(_skillsLabel, _middleCtrl, minLines: 3),
+        _letterField(_closingLabel, _closingCtrl, minLines: 3),
+        const SizedBox(height: 4),
+        Align(
+          alignment: _isRtl ? Alignment.centerLeft : Alignment.centerRight,
+          child: GestureDetector(
+            onTap: (_loadingTexts || _saving) ? null : _regenerate,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEAFBE9),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: _green.withOpacity(0.5)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (_loadingTexts)
+                    const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(
+                          color: _green, strokeWidth: 2),
+                    )
+                  else
+                    const Icon(Icons.refresh_rounded, color: _navy, size: 16),
+                  const SizedBox(width: 6),
+                  Text(
+                    _regenerateLabel,
+                    style: const TextStyle(
+                      color: _navy,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _letterField(String label, TextEditingController ctrl,
+      {required int minLines}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Align(
+            alignment: _isRtl ? Alignment.centerRight : Alignment.centerLeft,
+            child: Text(
+              label,
+              textDirection: _isRtl ? TextDirection.rtl : TextDirection.ltr,
+              style: const TextStyle(
+                color: _navy,
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+          const SizedBox(height: 6),
+          TextField(
+            controller: ctrl,
+            enabled: !_loadingTexts && !_saving,
+            minLines: minLines,
+            maxLines: null,
+            keyboardType: TextInputType.multiline,
+            // The letter itself is German, so the field is always LTR.
+            textDirection: TextDirection.ltr,
+            style: const TextStyle(color: _navy, fontSize: 13, height: 1.4),
+            cursorColor: _green,
+            decoration: InputDecoration(
+              filled: true,
+              fillColor: Colors.white.withOpacity(0.85),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide(color: _navy.withOpacity(0.12)),
+              ),
+              disabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide(color: _navy.withOpacity(0.08)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: const BorderSide(color: _green, width: 1.6),
               ),
             ),
           ),
