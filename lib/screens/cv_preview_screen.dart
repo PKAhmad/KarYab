@@ -17,6 +17,7 @@ import '../services/analytics_service.dart';
 import '../services/cv_pdf_generator.dart';
 import '../services/tts_service.dart';
 import '../utils/navigation_helpers.dart';
+import '../utils/pdf_save_helper.dart';
 import '../widgets/document_template_picker.dart';
 import 'questionnaire_screen.dart';
 
@@ -395,13 +396,7 @@ class _CvPreviewScreenState extends State<CvPreviewScreen> {
       // replaying the same rejected cached future on every subsequent tap.
       await _ensureTemplateReady();
       final bytes = await generateCv(_effectiveProfile, _template);
-      bool saved = false;
-      try {
-        final dir = Directory('/storage/emulated/0/Download');
-        if (!await dir.exists()) await dir.create(recursive: true);
-        await File('${dir.path}/$_pdfFilename').writeAsBytes(bytes);
-        saved = true;
-      } catch (_) {}
+      final saved = await savePdfToDownloads(bytes, _pdfFilename);
 
       if (!mounted) return;
       if (saved) {

@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui';
 
@@ -11,6 +10,7 @@ import '../models/user_profile.dart';
 import '../services/analytics_service.dart';
 import '../services/cv_pdf_generator.dart';
 import '../utils/navigation_helpers.dart';
+import '../utils/pdf_save_helper.dart';
 import '../widgets/document_template_picker.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -240,13 +240,7 @@ class _LetterDocumentScreenState extends State<LetterDocumentScreen> {
     setState(() => _saving = true);
     try {
       final bytes = await _buildBytes(PdfPageFormat.a4);
-      bool saved = false;
-      try {
-        final dir = Directory('/storage/emulated/0/Download');
-        if (!await dir.exists()) await dir.create(recursive: true);
-        await File('${dir.path}/$_pdfFilename').writeAsBytes(bytes);
-        saved = true;
-      } catch (_) {}
+      final saved = await savePdfToDownloads(bytes, _pdfFilename);
 
       if (!mounted) return;
       if (saved) {
