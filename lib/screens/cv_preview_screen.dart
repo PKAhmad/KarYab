@@ -386,9 +386,6 @@ class _CvPreviewScreenState extends State<CvPreviewScreen> {
   }
 
   Future<void> _download() async {
-    // TEMP DEBUG (task: "still unresolved download bug") — remove once
-    // confirmed fixed on-device.
-    debugPrint('[JobCV-DL] _download() tapped, _saving=$_saving');
     if (_saving) return;
     setState(() => _saving = true);
     try {
@@ -397,24 +394,17 @@ class _CvPreviewScreenState extends State<CvPreviewScreen> {
       // so a single failed attempt can't leave the button permanently stuck
       // replaying the same rejected cached future on every subsequent tap.
       await _ensureTemplateReady();
-      debugPrint('[JobCV-DL] template ready ($_template), calling generateCv()');
       final bytes = await generateCv(_effectiveProfile, _template);
-      debugPrint('[JobCV-DL] generateCv() returned ${bytes.length} bytes, '
-          'attempting direct write');
       bool saved = false;
       try {
         final dir = Directory('/storage/emulated/0/Download');
         if (!await dir.exists()) await dir.create(recursive: true);
         await File('${dir.path}/$_pdfFilename').writeAsBytes(bytes);
         saved = true;
-        debugPrint('[JobCV-DL] direct write SUCCEEDED: ${dir.path}/$_pdfFilename');
-      } catch (e) {
-        debugPrint('[JobCV-DL] direct write FAILED: $e');
-      }
+      } catch (_) {}
 
       if (!mounted) return;
       if (saved) {
-        debugPrint('[JobCV-DL] saved=true -> showing saved-to-Downloads snackbar');
         _saveCvStatus();
         AnalyticsService().logCVDownloaded();
         AnalyticsService().logCVCreated();
@@ -435,7 +425,6 @@ class _CvPreviewScreenState extends State<CvPreviewScreen> {
           ),
         );
       } else {
-        debugPrint('[JobCV-DL] saved=false -> falling back to Printing.sharePdf()');
         await Printing.sharePdf(bytes: bytes, filename: _pdfFilename);
         _saveCvStatus();
         AnalyticsService().logCVDownloaded();

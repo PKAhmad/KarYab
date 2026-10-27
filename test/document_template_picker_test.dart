@@ -29,11 +29,11 @@ void main() {
   }
 
   testWidgets(
-      'Use this Template stays reachable on a short viewport (regression '
-      'for the unreachable-confirm-button bug)', (tester) async {
+      'tapping a template selects it on a short viewport (regression for '
+      'the old unreachable-confirm-button bug)', (tester) async {
     // A short/small-phone-ish viewport is exactly what made the old
-    // non-scrolling sheet overflow far enough to push the confirm button
-    // outside the tappable area.
+    // non-scrolling sheet overflow far enough to push its controls outside
+    // the tappable area. Tapping a template now selects it directly.
     tester.view.physicalSize = const Size(360, 600);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -45,15 +45,11 @@ void main() {
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Dark Sidebar'));
-    await tester.pump();
-
-    // Must be reachable (and actually hit) without any manual scrolling by
-    // the test — ensureVisible only scrolls; ensures the ancestor Scrollable
-    // ends up positioned correctly.
-    await tester.ensureVisible(find.text('Use this Template'));
+    // The card must be reachable (and actually hit); ensureVisible only
+    // scrolls the ancestor Scrollable into position.
+    await tester.ensureVisible(find.text('Dark Sidebar'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Use this Template'), warnIfMissed: true);
+    await tester.tap(find.text('Dark Sidebar'), warnIfMissed: true);
     await tester.pumpAndSettle();
 
     expect(returned, DocumentTemplate.darkSidebar);
@@ -73,8 +69,6 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Blue Triangle'));
-    await tester.pump();
-    await tester.tap(find.text('Use this Template'));
     await tester.pumpAndSettle();
 
     expect(returned, DocumentTemplate.blueTriangle);

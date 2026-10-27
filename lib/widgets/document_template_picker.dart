@@ -63,15 +63,14 @@ class _DocumentTemplateSheetState extends State<_DocumentTemplateSheet> {
   Widget build(BuildContext context) {
     // Bug fix: this content used to be a plain, non-scrolling Column. On
     // shorter viewports (smaller/older phones, larger accessibility font
-    // scaling, landscape) it could overflow far enough that the "Use this
-    // Template" button ended up outside the tappable area entirely. When a
-    // user couldn't reach it, dismissing the sheet any other way (tap
-    // outside, back gesture) made showDocumentTemplatePicker() fall back to
-    // the *previous* template (see showDocumentTemplatePicker's `?? current`
-    // below), silently discarding whatever card they'd tapped — the exact
-    // "I picked a different template but the download didn't change" bug.
-    // Constraining height + wrapping in a scroll view guarantees the button
-    // is always reachable regardless of screen size.
+    // scaling, landscape) it could overflow far enough that a confirm button
+    // (since removed: tapping a template now selects it directly) ended up
+    // outside the tappable area entirely. Users who couldn't reach it
+    // dismissed the sheet another way (tap outside, back gesture), and
+    // showDocumentTemplatePicker() fell back to the *previous* template (see
+    // its `?? current` below), silently discarding whatever card they'd
+    // tapped. Constraining height + wrapping in a scroll view keeps every
+    // template card reachable regardless of screen size.
     final maxHeight = MediaQuery.of(context).size.height * 0.85;
     return Container(
       constraints: BoxConstraints(maxHeight: maxHeight),
@@ -322,8 +321,8 @@ class _AnschreibenTemplateSheetState extends State<_AnschreibenTemplateSheet> {
   @override
   Widget build(BuildContext context) {
     // Same overflow-safety fix as _DocumentTemplateSheet above (constrained
-    // height + scroll view, so the "Use this Template" button is always
-    // reachable regardless of screen size).
+    // height + scroll view, so every template card is always reachable
+    // regardless of screen size).
     final maxHeight = MediaQuery.of(context).size.height * 0.85;
     return Container(
       constraints: BoxConstraints(maxHeight: maxHeight),
