@@ -6,16 +6,13 @@ import 'package:provider/provider.dart';
 
 import 'constants/app_colors.dart';
 import 'providers/language_provider.dart';
-import 'screens/splash_screen.dart';
 import 'screens/welcome_screen.dart';
-import 'screens/home_screen.dart';
 import 'screens/education_screen.dart';
 import 'screens/permissions_screen.dart';
 import 'screens/introduction_screen.dart';
 import 'screens/choose_cv_type_screen.dart';
 import 'screens/questionnaire_screen.dart';
 import 'screens/job_finder_screen.dart';
-import 'screens/apply_screen.dart';
 import 'screens/job_apply_screen.dart';
 import 'screens/cv_preview_screen.dart';
 import 'screens/ausbildung_screen.dart';
@@ -73,8 +70,6 @@ class KarYabApp extends StatelessWidget {
             );
 
         switch (settings.name) {
-          case '/splash':
-            return MaterialPageRoute(builder: (_) => const SplashScreen());
           case '/welcome':
           case '/':
             return MaterialPageRoute(builder: (_) => const WelcomeScreen());
@@ -137,16 +132,6 @@ class KarYabApp extends StatelessWidget {
             }
             return _fade(QuestionnaireScreen(language: lang, voiceMode: voiceMode));
           }
-          case '/home': {
-            final args = settings.arguments;
-            if (args is Map<String, dynamic>) {
-              final lang = args['language'] as String? ?? 'en';
-              final voiceMode = args['voiceMode'] as bool? ?? false;
-              return _fade(HomeScreen(language: lang, voiceMode: voiceMode));
-            }
-            final lang = args as String? ?? 'en';
-            return _fade(HomeScreen(language: lang));
-          }
           case '/jobfinder': {
             final args = settings.arguments;
             if (args is Map<String, dynamic>) {
@@ -156,18 +141,6 @@ class KarYabApp extends StatelessWidget {
             }
             final lang = args as String? ?? 'en';
             return _fade(JobFinderScreen(language: lang));
-          }
-          case '/apply': {
-            final args = settings.arguments as Map<String, dynamic>? ?? const {};
-            return _fade(ApplyScreen(
-              jobTitle:       args['jobTitle']       as String? ?? '',
-              companyName:    args['companyName']    as String? ?? '',
-              companyAddress: args['companyAddress'] as String? ?? '',
-              redirectUrl:    args['redirectUrl']    as String? ?? '',
-              language:       args['language']       as String? ?? 'en',
-              voiceMode:      args['voiceMode']      as bool?   ?? false,
-              userName:       args['userName']       as String?,
-            ));
           }
           case '/job_apply': {
             final args =
