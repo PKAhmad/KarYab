@@ -15,6 +15,7 @@ import '../services/analytics_service.dart';
 import '../services/tts_service.dart';
 import '../utils/location_helpers.dart';
 import '../utils/navigation_helpers.dart';
+import '../ui/karyab_ui.dart';
 
 // ── Data models ───────────────────────────────────────────────────────────────
 
@@ -156,9 +157,9 @@ class JobFinderScreen extends StatefulWidget {
 class _JobFinderScreenState extends State<JobFinderScreen> {
   // ── Design tokens ──────────────────────────────────────────────────────────
 
-  static const Color _navy  = Color(0xFF091733);
-  static const Color _green = Color(0xFF39EA2B);
-  static const Color _muted = Color(0xFF65738A);
+  static const Color _navy  = KColors.navy;
+  static const Color _green = KColors.green;
+  static const Color _muted = KColors.textSecondary;
 
   // ── API constants ──────────────────────────────────────────────────────────
 
@@ -718,15 +719,7 @@ class _JobFinderScreenState extends State<JobFinderScreen> {
   }
 
   void _snack(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(msg, style: const TextStyle(color: Colors.white)),
-        backgroundColor: const Color(0xFF1A2B3C),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12)),
-      ),
-    );
+    kSnack(context, msg);
   }
 
   // Maps the selected job-type filter key to the German label used on the
@@ -782,10 +775,10 @@ class _JobFinderScreenState extends State<JobFinderScreen> {
         TtsService().stop();
       },
       child: Scaffold(
-      backgroundColor: const Color(0xFFF7FAFF),
+      backgroundColor: KColors.pageBase,
       body: Stack(
         children: [
-          const _BackgroundGlow(),
+          const KBackgroundGlow(),
           SafeArea(
             child: Column(
               children: [
@@ -838,7 +831,7 @@ class _JobFinderScreenState extends State<JobFinderScreen> {
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
       child: Row(
         children: [
-          _NavBtn(icon: Icons.home_rounded, onTap: _goHome),
+          KNavButton(icon: Icons.home_rounded, onTap: _goHome),
           Expanded(
             child: Text(
               _titleLabel,
@@ -857,7 +850,7 @@ class _JobFinderScreenState extends State<JobFinderScreen> {
             },
           ),
           const SizedBox(width: 8),
-          _NavBtn(
+          KNavButton(
             icon: TtsService().soundEnabled
                 ? Icons.volume_up_rounded
                 : Icons.volume_off_rounded,
@@ -1088,7 +1081,7 @@ class _JobFinderScreenState extends State<JobFinderScreen> {
                 width: 36,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFD1D9E6),
+                  color: KColors.handle,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -1118,10 +1111,10 @@ class _JobFinderScreenState extends State<JobFinderScreen> {
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: selected ? _green.withOpacity(0.10) : const Color(0xFFF7FAFF),
+          color: selected ? _green.withOpacity(0.10) : KColors.pageBase,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: selected ? _green : const Color(0xFFE4EAF5),
+            color: selected ? _green : KColors.borderSoft,
             width: selected ? 2.0 : 1.2,
           ),
         ),
@@ -1288,7 +1281,7 @@ class _JobFinderScreenState extends State<JobFinderScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: const Color(0xFFEAFBE9),
+          color: KColors.mint,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: _green.withOpacity(0.4)),
         ),
@@ -1335,10 +1328,9 @@ class _JobFinderScreenState extends State<JobFinderScreen> {
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 40),
-        child: _GlassSurface(
+        child: KGlassSurface(
           borderRadius: 20,
           padding: const EdgeInsets.all(32),
-          shadowOpacity: 0.10,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -1368,10 +1360,9 @@ class _JobFinderScreenState extends State<JobFinderScreen> {
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 40),
-        child: _GlassSurface(
+        child: KGlassSurface(
           borderRadius: 20,
           padding: const EdgeInsets.all(28),
-          shadowOpacity: 0.10,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -1442,10 +1433,9 @@ class _JobFinderScreenState extends State<JobFinderScreen> {
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 40),
-        child: _GlassSurface(
+        child: KGlassSurface(
           borderRadius: 20,
           padding: const EdgeInsets.all(28),
-          shadowOpacity: 0.10,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -1517,10 +1507,9 @@ class _JobFinderScreenState extends State<JobFinderScreen> {
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 40),
-        child: _GlassSurface(
+        child: KGlassSurface(
           borderRadius: 20,
           padding: const EdgeInsets.all(28),
-          shadowOpacity: 0.10,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -1573,40 +1562,13 @@ class _JobFinderScreenState extends State<JobFinderScreen> {
     final voice          = widget.voiceMode;
     final showSpeakerOnCard = voice && (_lang == 'ps' || _lang == 'fa');
 
-    return GestureDetector(
+    return KGlassCard(
+      borderRadius: 18,
+      padding: EdgeInsets.all(voice ? 16 : 14),
       onTap: () => _openJobDirect(job),
-      child: Container(
-        padding: EdgeInsets.all(voice ? 16 : 14),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-              color: Colors.white.withOpacity(0.9), width: 1.2),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.18),
-              blurRadius: 24,
-              spreadRadius: 2,
-              offset: const Offset(0, 8),
-            ),
-            BoxShadow(
-              color: Colors.black.withOpacity(0.08),
-              blurRadius: 8,
-              spreadRadius: 0,
-              offset: const Offset(0, 2),
-            ),
-            BoxShadow(
-              color: Colors.white.withOpacity(0.9),
-              blurRadius: 0,
-              spreadRadius: 0,
-              offset: const Offset(-2, -2),
-            ),
-          ],
-        ),
-        child: voice
-            ? _buildVoiceCard(job, dist, icon, showSpeakerOnCard, isRtl)
-            : _buildCompactCard(job, dist, icon, isRtl),
-      ),
+      child: voice
+          ? _buildVoiceCard(job, dist, icon, showSpeakerOnCard, isRtl)
+          : _buildCompactCard(job, dist, icon, isRtl),
     );
   }
 
@@ -1622,7 +1584,7 @@ class _JobFinderScreenState extends State<JobFinderScreen> {
           width: 46,
           height: 46,
           decoration: BoxDecoration(
-            color: const Color(0xFFEAFBE9),
+            color: KColors.mint,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
                 color: _green.withOpacity(0.3), width: 1),
@@ -1705,7 +1667,7 @@ class _JobFinderScreenState extends State<JobFinderScreen> {
               width: 52,
               height: 52,
               decoration: BoxDecoration(
-                color: const Color(0xFFEAFBE9),
+                color: KColors.mint,
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(
                     color: _green.withOpacity(0.3), width: 1),
@@ -1756,7 +1718,7 @@ class _JobFinderScreenState extends State<JobFinderScreen> {
                   width: 36,
                   height: 36,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFEAFBE9),
+                    color: KColors.mint,
                     shape: BoxShape.circle,
                     border: Border.all(
                         color: _green.withOpacity(0.3), width: 1),
@@ -1828,7 +1790,7 @@ class _JobFinderScreenState extends State<JobFinderScreen> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _LangPill extends StatelessWidget {
-  static const Color _navy = Color(0xFF091733);
+  static const Color _navy = KColors.navy;
 
   final String lang;
   final void Function(String newLang, bool voiceMode)? onLanguageChanged;
@@ -1909,8 +1871,8 @@ class _LangPill extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _LanguagePicker extends StatelessWidget {
-  static const Color _navy  = Color(0xFF091733);
-  static const Color _green = Color(0xFF39EA2B);
+  static const Color _navy  = KColors.navy;
+  static const Color _green = KColors.green;
 
   final String currentLang;
   final ValueChanged<String> onSelect;
@@ -1942,7 +1904,7 @@ class _LanguagePicker extends StatelessWidget {
               width: 36,
               height: 4,
               decoration: BoxDecoration(
-                color: const Color(0xFFD1D9E6),
+                color: KColors.handle,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -1969,10 +1931,10 @@ class _LanguagePicker extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: isSelected
                       ? _green.withOpacity(0.08)
-                      : const Color(0xFFF7FAFF),
+                      : KColors.pageBase,
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(
-                    color: isSelected ? _green : const Color(0xFFE4EAF5),
+                    color: isSelected ? _green : KColors.borderSoft,
                     width: isSelected ? 2.0 : 1.2,
                   ),
                 ),
@@ -1992,7 +1954,7 @@ class _LanguagePicker extends StatelessWidget {
                     Text(
                       e['roman']!,
                       style: const TextStyle(
-                        color: Color(0xFF65738A),
+                        color: KColors.textSecondary,
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
                       ),
@@ -2015,164 +1977,3 @@ class _LanguagePicker extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 // Nav button (glass surface)
 // ─────────────────────────────────────────────────────────────────────────────
-
-class _NavBtn extends StatelessWidget {
-  static const Color _navy  = Color(0xFF091733);
-  static const Color _green = Color(0xFF39EA2B);
-
-  final IconData icon;
-  final VoidCallback onTap;
-  final bool active;
-  final bool hintPulse;
-
-  const _NavBtn({
-    required this.icon,
-    required this.onTap,
-    this.active = false,
-    this.hintPulse = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 250),
-        decoration: BoxDecoration(
-          color: hintPulse
-              ? const Color(0xFF091733).withOpacity(0.85)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: _GlassSurface(
-          width: 44,
-          height: 44,
-          borderRadius: 14,
-          padding: EdgeInsets.zero,
-          shadowOpacity: 0.08,
-          child: Icon(icon, color: active ? _green : _navy, size: 20),
-        ),
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Background glow — copied from welcome_screen.dart
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _BackgroundGlow extends StatelessWidget {
-  const _BackgroundGlow();
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      children: const [
-        DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                Color(0xFFF9FBFF),
-                Color(0xFFEFF6FF),
-                Color(0xFFF7FFF2),
-              ],
-            ),
-          ),
-          child: SizedBox.expand(),
-        ),
-        Positioned(top: 70,    left: -42,  child: _Orb(size: 170, color: Color(0x6639EA2B))),
-        Positioned(top: 135,   right: -65, child: _Orb(size: 170, color: Color(0x44FFB86B))),
-        Positioned(bottom: 95, left: -60,  child: _Orb(size: 210, color: Color(0x3339EA2B))),
-        Positioned(bottom: -30,right: 14,  child: _Orb(size: 145, color: Color(0x5539EA2B))),
-        Positioned(top: 20,    left: 30,   child: _Orb(size: 170, color: Color(0x30FF8FA3))),
-      ],
-    );
-  }
-}
-
-class _Orb extends StatelessWidget {
-  final double size;
-  final Color color;
-
-  const _Orb({required this.size, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return IgnorePointer(
-      child: ImageFiltered(
-        imageFilter: ImageFilter.blur(sigmaX: 35, sigmaY: 35),
-        child: Container(
-          width: size,
-          height: size,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-        ),
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Glass surface — copied from welcome_screen.dart
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _GlassSurface extends StatelessWidget {
-  final Widget child;
-  final double? width;
-  final double? height;
-  final double borderRadius;
-  final EdgeInsetsGeometry padding;
-  final double shadowOpacity;
-
-  const _GlassSurface({
-    required this.child,
-    this.width,
-    this.height,
-    required this.borderRadius,
-    required this.padding,
-    this.shadowOpacity = 0.09,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(borderRadius),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
-        child: Container(
-          width: width ?? double.infinity,
-          height: height,
-          padding: padding,
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.62),
-            borderRadius: BorderRadius.circular(borderRadius),
-            border: Border.all(
-                color: Colors.white.withOpacity(0.85), width: 1.2),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.18),
-                blurRadius: 24,
-                spreadRadius: 2,
-                offset: const Offset(0, 8),
-              ),
-              BoxShadow(
-                color: Colors.black.withOpacity(0.08),
-                blurRadius: 8,
-                spreadRadius: 0,
-                offset: const Offset(0, 2),
-              ),
-              BoxShadow(
-                color: Colors.white.withOpacity(0.9),
-                blurRadius: 0,
-                spreadRadius: 0,
-                offset: const Offset(-2, -2),
-              ),
-            ],
-          ),
-          child: child,
-        ),
-      ),
-    );
-  }
-}

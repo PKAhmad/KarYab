@@ -504,6 +504,61 @@ class KGridTile extends StatelessWidget {
   }
 }
 
+// ── Glass card ───────────────────────────────────────────────────────────────
+
+// Translucent (not blurred) card with the same decoration as [KGridTile]:
+// white 0.62 fill, white 0.85 border at 1.2, one black 0.06 shadow. Safe to
+// use inside lists, because it never uses a BackdropFilter. [selected] gives
+// the 2.0 green border and a 0.07 green tint.
+class KGlassCard extends StatelessWidget {
+  final Widget child;
+  final double borderRadius;
+  final EdgeInsetsGeometry padding;
+  final VoidCallback? onTap;
+  final bool selected;
+
+  const KGlassCard({
+    super.key,
+    required this.child,
+    required this.borderRadius,
+    this.padding = EdgeInsets.zero,
+    this.onTap,
+    this.selected = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 180),
+      decoration: BoxDecoration(
+        color: selected
+            ? KColors.green.withOpacity(0.07)
+            : Colors.white.withOpacity(0.62),
+        borderRadius: BorderRadius.circular(borderRadius),
+        border: Border.all(
+          color: selected ? KColors.green : Colors.white.withOpacity(0.85),
+          width: selected ? 2.0 : 1.2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 14,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(borderRadius),
+          onTap: onTap,
+          child: Padding(padding: padding, child: child),
+        ),
+      ),
+    );
+  }
+}
+
 // ── Snackbar ─────────────────────────────────────────────────────────────────
 
 enum KSnackKind { info, success, error }

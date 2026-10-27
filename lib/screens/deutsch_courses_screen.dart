@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../providers/language_provider.dart';
 import '../services/tts_service.dart';
 import '../utils/location_helpers.dart';
+import '../ui/karyab_ui.dart';
 import 'in_app_browser_screen.dart';
 
 class DeutschCoursesScreen extends StatefulWidget {
@@ -25,9 +26,9 @@ class DeutschCoursesScreen extends StatefulWidget {
 }
 
 class _DeutschCoursesScreenState extends State<DeutschCoursesScreen> {
-  static const Color _navy  = Color(0xFF091733);
-  static const Color _green = Color(0xFF39EA2B);
-  static const Color _muted = Color(0xFF65738A);
+  static const Color _navy  = KColors.navy;
+  static const Color _green = KColors.green;
+  static const Color _muted = KColors.textSecondary;
 
   String _lang = 'en';
   final _cityCtrl = TextEditingController();
@@ -101,19 +102,14 @@ class _DeutschCoursesScreenState extends State<DeutschCoursesScreen> {
   void _openVHS() {
     final city = _cityCtrl.text.trim();
     if (city.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(
-          _lang == 'ps'
-              ? 'لطفاً د ښار نوم ولیکئ'
-              : _lang == 'fa'
-                  ? 'لطفاً نام شهر را وارد کنید'
-                  : 'Please enter your city name first',
-          style: const TextStyle(color: Colors.white),
-        ),
-        backgroundColor: _navy,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ));
+      kSnack(
+        context,
+        _lang == 'ps'
+            ? 'لطفاً د ښار نوم ولیکئ'
+            : _lang == 'fa'
+                ? 'لطفاً نام شهر را وارد کنید'
+                : 'Please enter your city name first',
+      );
       return;
     }
     Navigator.push(
@@ -202,10 +198,10 @@ class _DeutschCoursesScreenState extends State<DeutschCoursesScreen> {
         TtsService().stop();
       },
       child: Scaffold(
-      backgroundColor: const Color(0xFFF7FAFF),
+      backgroundColor: KColors.pageBase,
       body: Stack(
         children: [
-          const _BackgroundGlow(),
+          KBackgroundGlow(accent: const Color(0x44B086FF)),
           SafeArea(
             child: Column(
               children: [
@@ -222,7 +218,7 @@ class _DeutschCoursesScreenState extends State<DeutschCoursesScreen> {
                         const SizedBox(height: 16),
                         _buildOptionCard(
                           icon: Icons.school_rounded,
-                          iconBgColor: const Color(0xFFEAFBE9),
+                          iconBgColor: KColors.mint,
                           iconColor: _green,
                           title: _lang == 'ps'
                               ? 'د BAMF ادغام کورس'
@@ -247,7 +243,7 @@ class _DeutschCoursesScreenState extends State<DeutschCoursesScreen> {
                         _buildOptionCard(
                           icon: Icons.menu_book_rounded,
                           iconBgColor: const Color(0xFFEBF3FF),
-                          iconColor: const Color(0xFF2D6BE4),
+                          iconColor: KColors.blue,
                           title: _lang == 'ps'
                               ? 'نږدې VHS کورسونه ومومئ'
                               : _lang == 'fa'
@@ -287,7 +283,7 @@ class _DeutschCoursesScreenState extends State<DeutschCoursesScreen> {
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
       child: Row(
         children: [
-          _NavBtn(
+          KNavButton(
             icon: Icons.arrow_back_ios_new_rounded,
             onTap: () {
               TtsService().stop();
@@ -305,7 +301,7 @@ class _DeutschCoursesScreenState extends State<DeutschCoursesScreen> {
               ),
             ),
           ),
-          _NavBtn(
+          KNavButton(
             icon: TtsService().soundEnabled
                 ? Icons.volume_up_rounded
                 : Icons.volume_off_rounded,
@@ -324,7 +320,7 @@ class _DeutschCoursesScreenState extends State<DeutschCoursesScreen> {
   // ── Info card ─────────────────────────────────────────────────────────────
 
   Widget _buildInfoCard() {
-    return _GlassSurface(
+    return KGlassSurface(
       borderRadius: 20,
       padding: const EdgeInsets.all(16),
       child: Row(
@@ -335,7 +331,7 @@ class _DeutschCoursesScreenState extends State<DeutschCoursesScreen> {
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: const Color(0xFFEAFBE9),
+              color: KColors.mint,
               shape: BoxShape.circle,
             ),
             child: const Icon(Icons.info_outline_rounded, color: _green, size: 20),
@@ -485,7 +481,7 @@ class _DeutschCoursesScreenState extends State<DeutschCoursesScreen> {
                       width: 32,
                       height: 32,
                       decoration: const BoxDecoration(
-                        color: Color(0xFFEAFBE9),
+                        color: KColors.mint,
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(Icons.volume_up_rounded,
@@ -532,7 +528,7 @@ class _DeutschCoursesScreenState extends State<DeutschCoursesScreen> {
                 width: 28,
                 height: 28,
                 decoration: const BoxDecoration(
-                  color: Color(0xFFEAFBE9),
+                  color: KColors.mint,
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(Icons.volume_up_rounded,
@@ -573,7 +569,7 @@ class _DeutschCoursesScreenState extends State<DeutschCoursesScreen> {
                 width: 28,
                 height: 28,
                 decoration: const BoxDecoration(
-                  color: Color(0xFFEAFBE9),
+                  color: KColors.mint,
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(Icons.volume_up_rounded,
@@ -588,141 +584,3 @@ class _DeutschCoursesScreenState extends State<DeutschCoursesScreen> {
 }
 
 // ── Nav button ────────────────────────────────────────────────────────────────
-
-class _NavBtn extends StatelessWidget {
-  static const Color _navy  = Color(0xFF091733);
-  static const Color _green = Color(0xFF39EA2B);
-
-  final IconData icon;
-  final VoidCallback onTap;
-  final bool active;
-  final bool hintPulse;
-
-  const _NavBtn({
-    required this.icon,
-    required this.onTap,
-    this.active = false,
-    this.hintPulse = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 250),
-        decoration: BoxDecoration(
-          color: hintPulse
-              ? const Color(0xFF091733).withOpacity(0.85)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: _GlassSurface(
-          width: 44,
-          height: 44,
-          borderRadius: 14,
-          padding: EdgeInsets.zero,
-          child: Icon(icon, color: active ? _green : _navy, size: 20),
-        ),
-      ),
-    );
-  }
-}
-
-// ── Background glow ───────────────────────────────────────────────────────────
-
-class _BackgroundGlow extends StatelessWidget {
-  const _BackgroundGlow();
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      children: const [
-        DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFFF9FBFF), Color(0xFFEFF6FF), Color(0xFFF7FFF2)],
-            ),
-          ),
-          child: SizedBox.expand(),
-        ),
-        Positioned(top: 70,    left: -42,  child: _Orb(size: 170, color: Color(0x6639EA2B))),
-        Positioned(top: 135,   right: -65, child: _Orb(size: 160, color: Color(0x44B086FF))),
-        Positioned(bottom: 80, left: -50,  child: _Orb(size: 200, color: Color(0x3339EA2B))),
-      ],
-    );
-  }
-}
-
-class _Orb extends StatelessWidget {
-  final double size;
-  final Color color;
-  const _Orb({required this.size, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return IgnorePointer(
-      child: ImageFiltered(
-        imageFilter: ImageFilter.blur(sigmaX: 35, sigmaY: 35),
-        child: Container(
-          width: size,
-          height: size,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-        ),
-      ),
-    );
-  }
-}
-
-// ── Glass surface ─────────────────────────────────────────────────────────────
-
-class _GlassSurface extends StatelessWidget {
-  final Widget child;
-  final double? width;
-  final double? height;
-  final double borderRadius;
-  final EdgeInsetsGeometry padding;
-
-  const _GlassSurface({
-    required this.child,
-    this.width,
-    this.height,
-    required this.borderRadius,
-    required this.padding,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(borderRadius),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
-        child: Container(
-          width: width ?? double.infinity,
-          height: height,
-          padding: padding,
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.62),
-            borderRadius: BorderRadius.circular(borderRadius),
-            border:
-                Border.all(color: Colors.white.withOpacity(0.85), width: 1.2),
-            boxShadow: [
-              BoxShadow(
-                  color: Colors.black.withOpacity(0.18),
-                  blurRadius: 24,
-                  spreadRadius: 2,
-                  offset: const Offset(0, 8)),
-              BoxShadow(
-                  color: Colors.black.withOpacity(0.08),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2)),
-            ],
-          ),
-          child: child,
-        ),
-      ),
-    );
-  }
-}

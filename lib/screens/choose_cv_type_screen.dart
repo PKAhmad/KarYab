@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user_profile.dart';
 import '../services/analytics_service.dart';
 import '../services/tts_service.dart';
+import '../ui/karyab_ui.dart';
 import 'ausbildung_cv_questionnaire_screen.dart';
 import 'letter_document_screen.dart';
 import 'personal_data_screen.dart';
@@ -37,9 +38,9 @@ class ChooseCvTypeScreen extends StatefulWidget {
 }
 
 class _ChooseCvTypeScreenState extends State<ChooseCvTypeScreen> {
-  static const Color _navy  = Color(0xFF091733);
-  static const Color _green = Color(0xFF39EA2B);
-  static const Color _muted = Color(0xFF65738A);
+  static const Color _navy  = KColors.navy;
+  static const Color _green = KColors.green;
+  static const Color _muted = KColors.textSecondary;
 
   late String _lang;
   late bool _voiceMode;
@@ -170,12 +171,7 @@ class _ChooseCvTypeScreenState extends State<ChooseCvTypeScreen> {
   }
 
   void _showNoDataSnack() {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(_noDataMsg, style: const TextStyle(color: Colors.white)),
-      backgroundColor: _navy,
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-    ));
+    kSnack(context, _noDataMsg);
   }
 
   // ── Localised strings ──────────────────────────────────────────────────────
@@ -269,10 +265,10 @@ class _ChooseCvTypeScreenState extends State<ChooseCvTypeScreen> {
         TtsService().stop();
       },
       child: Scaffold(
-        backgroundColor: const Color(0xFFF7FAFF),
+        backgroundColor: KColors.pageBase,
         body: Stack(
           children: [
-            const _BackgroundGlow(),
+            const KBackgroundGlow(),
             SafeArea(
               child: Column(
                 children: [
@@ -299,7 +295,7 @@ class _ChooseCvTypeScreenState extends State<ChooseCvTypeScreen> {
                           const SizedBox(height: 16),
                           _CvTypeCard(
                             icon: Icons.school_rounded,
-                            iconColor: const Color(0xFF2D6BE4),
+                            iconColor: KColors.blue,
                             label: _ausbildungCvLabel,
                             subtitle: _ausbildungCvSubtitle,
                             isRtl: _isRtl,
@@ -312,7 +308,7 @@ class _ChooseCvTypeScreenState extends State<ChooseCvTypeScreen> {
                           const SizedBox(height: 16),
                           _CvTypeCard(
                             icon: Icons.mail_rounded,
-                            iconColor: const Color(0xFF9C27B0),
+                            iconColor: KColors.purple,
                             label: _coverLetterLabel,
                             subtitle: _coverLetterSubtitle,
                             isRtl: _isRtl,
@@ -353,7 +349,7 @@ class _ChooseCvTypeScreenState extends State<ChooseCvTypeScreen> {
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
       child: Row(
         children: [
-          _NavBtn(
+          KNavButton(
             icon: Icons.arrow_back_ios_new_rounded,
             onTap: () {
               TtsService().stop();
@@ -393,9 +389,9 @@ class _ChooseCvTypeScreenState extends State<ChooseCvTypeScreen> {
 }
 
 class _CvTypeCard extends StatelessWidget {
-  static const Color _navy  = Color(0xFF091733);
-  static const Color _green = Color(0xFF39EA2B);
-  static const Color _muted = Color(0xFF65738A);
+  static const Color _navy  = KColors.navy;
+  static const Color _green = KColors.green;
+  static const Color _muted = KColors.textSecondary;
 
   final IconData icon;
   final Color iconColor;
@@ -423,7 +419,7 @@ class _CvTypeCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: loading ? null : onTap,
-      child: _GlassSurface(
+      child: KGlassSurface(
         borderRadius: 22,
         padding: const EdgeInsets.all(20),
         child: Row(
@@ -433,7 +429,7 @@ class _CvTypeCard extends StatelessWidget {
               width: 56,
               height: 56,
               decoration: BoxDecoration(
-                color: const Color(0xFFEAFBE9),
+                color: KColors.mint,
                 shape: BoxShape.circle,
                 border: Border.all(color: iconColor.withOpacity(0.3), width: 1),
               ),
@@ -474,7 +470,7 @@ class _CvTypeCard extends StatelessWidget {
                   width: 34,
                   height: 34,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFEAFBE9),
+                    color: KColors.mint,
                     shape: BoxShape.circle,
                     border: Border.all(color: _green.withOpacity(0.4)),
                   ),
@@ -493,122 +489,6 @@ class _CvTypeCard extends StatelessWidget {
             else
               const Icon(Icons.chevron_right_rounded, color: _muted, size: 24),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _NavBtn extends StatelessWidget {
-  static const Color _navy = Color(0xFF091733);
-
-  final IconData icon;
-  final VoidCallback onTap;
-
-  const _NavBtn({required this.icon, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: _GlassSurface(
-        width: 44,
-        height: 44,
-        borderRadius: 14,
-        padding: EdgeInsets.zero,
-        child: Icon(icon, color: _navy, size: 20),
-      ),
-    );
-  }
-}
-
-class _BackgroundGlow extends StatelessWidget {
-  const _BackgroundGlow();
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      children: const [
-        DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFFF9FBFF), Color(0xFFEFF6FF), Color(0xFFF7FFF2)],
-            ),
-          ),
-          child: SizedBox.expand(),
-        ),
-        Positioned(top: 70,   left: -42,  child: _Orb(size: 170, color: Color(0x6639EA2B))),
-        Positioned(top: 135,  right: -65, child: _Orb(size: 170, color: Color(0x44FFB86B))),
-        Positioned(bottom: 95, left: -60, child: _Orb(size: 210, color: Color(0x3339EA2B))),
-      ],
-    );
-  }
-}
-
-class _Orb extends StatelessWidget {
-  final double size;
-  final Color color;
-  const _Orb({required this.size, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return IgnorePointer(
-      child: ImageFiltered(
-        imageFilter: ImageFilter.blur(sigmaX: 35, sigmaY: 35),
-        child: Container(
-          width: size,
-          height: size,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-        ),
-      ),
-    );
-  }
-}
-
-class _GlassSurface extends StatelessWidget {
-  final Widget child;
-  final double? width;
-  final double? height;
-  final double borderRadius;
-  final EdgeInsetsGeometry padding;
-
-  const _GlassSurface({
-    required this.child,
-    this.width,
-    this.height,
-    required this.borderRadius,
-    required this.padding,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(borderRadius),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
-        child: Container(
-          width: width ?? double.infinity,
-          height: height,
-          padding: padding,
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.62),
-            borderRadius: BorderRadius.circular(borderRadius),
-            border: Border.all(color: Colors.white.withOpacity(0.85), width: 1.2),
-            boxShadow: [
-              BoxShadow(
-                  color: Colors.black.withOpacity(0.18),
-                  blurRadius: 24,
-                  spreadRadius: 2,
-                  offset: const Offset(0, 8)),
-              BoxShadow(
-                  color: Colors.black.withOpacity(0.08),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2)),
-            ],
-          ),
-          child: child,
         ),
       ),
     );

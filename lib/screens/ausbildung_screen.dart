@@ -13,6 +13,7 @@ import '../services/analytics_service.dart';
 import '../services/tts_service.dart';
 import '../utils/location_helpers.dart';
 import '../utils/navigation_helpers.dart';
+import '../ui/karyab_ui.dart';
 
 // ── Data model ────────────────────────────────────────────────────────────────
 
@@ -98,9 +99,9 @@ class AusbildungScreen extends StatefulWidget {
 }
 
 class _AusbildungScreenState extends State<AusbildungScreen> {
-  static const Color _navy  = Color(0xFF091733);
-  static const Color _green = Color(0xFF39EA2B);
-  static const Color _muted = Color(0xFF65738A);
+  static const Color _navy  = KColors.navy;
+  static const Color _green = KColors.green;
+  static const Color _muted = KColors.textSecondary;
 
   static const _kApiKey  = 'jobboerse-jobsuche';
   static const _kBaseUrl =
@@ -273,14 +274,7 @@ class _AusbildungScreenState extends State<AusbildungScreen> {
   }
 
   void _snack(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(msg, style: const TextStyle(color: Colors.white)),
-        backgroundColor: const Color(0xFF1A2B3C),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
+    kSnack(context, msg);
   }
 
   // Same destination every other "Home" button in the app uses (see
@@ -487,10 +481,10 @@ class _AusbildungScreenState extends State<AusbildungScreen> {
         TtsService().stop();
       },
       child: Scaffold(
-      backgroundColor: const Color(0xFFF7FAFF),
+      backgroundColor: KColors.pageBase,
       body: Stack(
         children: [
-          const _BackgroundGlow(),
+          const KBackgroundGlow(),
           SafeArea(
             child: Column(
               children: [
@@ -535,7 +529,7 @@ class _AusbildungScreenState extends State<AusbildungScreen> {
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
       child: Row(
         children: [
-          _NavBtn(
+          KNavButton(
             icon: Icons.arrow_back_ios_new_rounded,
             onTap: () {
               TtsService().stop();
@@ -553,9 +547,9 @@ class _AusbildungScreenState extends State<AusbildungScreen> {
               ),
             ),
           ),
-          _NavBtn(icon: Icons.home_rounded, onTap: _goHome),
+          KNavButton(icon: Icons.home_rounded, onTap: _goHome),
           const SizedBox(width: 8),
-          _NavBtn(
+          KNavButton(
             icon: TtsService().soundEnabled
                 ? Icons.volume_up_rounded
                 : Icons.volume_off_rounded,
@@ -664,7 +658,7 @@ class _AusbildungScreenState extends State<AusbildungScreen> {
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 40),
-        child: _GlassSurface(
+        child: KGlassSurface(
           borderRadius: 20,
           padding: const EdgeInsets.all(28),
           child: Column(
@@ -885,7 +879,7 @@ class _AusbildungScreenState extends State<AusbildungScreen> {
                 width: 36,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFD1D9E6),
+                  color: KColors.handle,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -915,10 +909,10 @@ class _AusbildungScreenState extends State<AusbildungScreen> {
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: selected ? _green.withOpacity(0.10) : const Color(0xFFF7FAFF),
+          color: selected ? _green.withOpacity(0.10) : KColors.pageBase,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: selected ? _green : const Color(0xFFE4EAF5),
+            color: selected ? _green : KColors.borderSoft,
             width: selected ? 2.0 : 1.2,
           ),
         ),
@@ -988,7 +982,7 @@ class _AusbildungScreenState extends State<AusbildungScreen> {
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 40),
-        child: _GlassSurface(
+        child: KGlassSurface(
           borderRadius: 20,
           padding: const EdgeInsets.all(32),
           child: Column(
@@ -1011,7 +1005,7 @@ class _AusbildungScreenState extends State<AusbildungScreen> {
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 40),
-        child: _GlassSurface(
+        child: KGlassSurface(
           borderRadius: 20,
           padding: const EdgeInsets.all(28),
           child: Column(
@@ -1047,7 +1041,7 @@ class _AusbildungScreenState extends State<AusbildungScreen> {
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 40),
-        child: _GlassSurface(
+        child: KGlassSurface(
           borderRadius: 20,
           padding: const EdgeInsets.all(28),
           child: Column(
@@ -1085,27 +1079,11 @@ class _AusbildungScreenState extends State<AusbildungScreen> {
   }
 
   Widget _buildCard(_Job job, bool isRtl) {
-    return GestureDetector(
+    return KGlassCard(
+      borderRadius: 18,
+      padding: const EdgeInsets.all(14),
       onTap: () => _openJob(job),
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: Colors.white.withOpacity(0.9), width: 1.2),
-          boxShadow: [
-            BoxShadow(
-                color: Colors.black.withOpacity(0.18),
-                blurRadius: 24,
-                spreadRadius: 2,
-                offset: const Offset(0, 8)),
-            BoxShadow(
-                color: Colors.black.withOpacity(0.08),
-                blurRadius: 8,
-                offset: const Offset(0, 2)),
-          ],
-        ),
-        child: Row(
+      child: Row(
           textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
@@ -1113,7 +1091,7 @@ class _AusbildungScreenState extends State<AusbildungScreen> {
               width: 46,
               height: 46,
               decoration: BoxDecoration(
-                color: const Color(0xFFEAFBE9),
+                color: KColors.mint,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: _green.withOpacity(0.3), width: 1),
               ),
@@ -1160,147 +1138,8 @@ class _AusbildungScreenState extends State<AusbildungScreen> {
             const Icon(Icons.arrow_forward_ios_rounded, color: _green, size: 14),
           ],
         ),
-      ),
     );
   }
 }
 
 // ── Nav button ────────────────────────────────────────────────────────────────
-
-class _NavBtn extends StatelessWidget {
-  static const Color _navy  = Color(0xFF091733);
-  static const Color _green = Color(0xFF39EA2B);
-
-  final IconData icon;
-  final VoidCallback onTap;
-  final bool active;
-  final bool hintPulse;
-
-  const _NavBtn({
-    required this.icon,
-    required this.onTap,
-    this.active = false,
-    this.hintPulse = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 250),
-        decoration: BoxDecoration(
-          color: hintPulse
-              ? const Color(0xFF091733).withOpacity(0.85)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: _GlassSurface(
-          width: 44,
-          height: 44,
-          borderRadius: 14,
-          padding: EdgeInsets.zero,
-          child: Icon(icon, color: active ? _green : _navy, size: 20),
-        ),
-      ),
-    );
-  }
-}
-
-// ── Background glow ───────────────────────────────────────────────────────────
-
-class _BackgroundGlow extends StatelessWidget {
-  const _BackgroundGlow();
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      children: const [
-        DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFFF9FBFF), Color(0xFFEFF6FF), Color(0xFFF7FFF2)],
-            ),
-          ),
-          child: SizedBox.expand(),
-        ),
-        Positioned(top: 70,    left: -42,  child: _Orb(size: 170, color: Color(0x6639EA2B))),
-        Positioned(top: 135,   right: -65, child: _Orb(size: 170, color: Color(0x44FFB86B))),
-        Positioned(bottom: 95, left: -60,  child: _Orb(size: 210, color: Color(0x3339EA2B))),
-        Positioned(bottom: -30,right: 14,  child: _Orb(size: 145, color: Color(0x5539EA2B))),
-      ],
-    );
-  }
-}
-
-class _Orb extends StatelessWidget {
-  final double size;
-  final Color color;
-  const _Orb({required this.size, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return IgnorePointer(
-      child: ImageFiltered(
-        imageFilter: ImageFilter.blur(sigmaX: 35, sigmaY: 35),
-        child: Container(
-          width: size,
-          height: size,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-        ),
-      ),
-    );
-  }
-}
-
-// ── Glass surface ─────────────────────────────────────────────────────────────
-
-class _GlassSurface extends StatelessWidget {
-  final Widget child;
-  final double? width;
-  final double? height;
-  final double borderRadius;
-  final EdgeInsetsGeometry padding;
-
-  const _GlassSurface({
-    required this.child,
-    this.width,
-    this.height,
-    required this.borderRadius,
-    required this.padding,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(borderRadius),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
-        child: Container(
-          width: width ?? double.infinity,
-          height: height,
-          padding: padding,
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.62),
-            borderRadius: BorderRadius.circular(borderRadius),
-            border: Border.all(color: Colors.white.withOpacity(0.85), width: 1.2),
-            boxShadow: [
-              BoxShadow(
-                  color: Colors.black.withOpacity(0.18),
-                  blurRadius: 24,
-                  spreadRadius: 2,
-                  offset: const Offset(0, 8)),
-              BoxShadow(
-                  color: Colors.black.withOpacity(0.08),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2)),
-            ],
-          ),
-          child: child,
-        ),
-      ),
-    );
-  }
-}
