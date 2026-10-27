@@ -12,6 +12,7 @@ import '../services/cv_pdf_generator.dart';
 import '../utils/navigation_helpers.dart';
 import '../utils/pdf_save_helper.dart';
 import '../widgets/document_template_picker.dart';
+import '../ui/karyab_ui.dart';
 
 import 'ausbildung_cv_questionnaire_screen.dart';
 
@@ -51,8 +52,8 @@ class AusbildungDocumentPreviewScreen extends StatefulWidget {
 
 class _AusbildungDocumentPreviewScreenState
     extends State<AusbildungDocumentPreviewScreen> {
-  static const Color _navy  = Color(0xFF091733);
-  static const Color _green = Color(0xFF39EA2B);
+  static const Color _navy  = KColors.navy;
+  static const Color _green = KColors.green;
 
   late String _lang;
   DocumentTemplate _cvTemplate = DocumentTemplate.atsBlue;
@@ -130,12 +131,7 @@ class _AusbildungDocumentPreviewScreenState
   }
 
   void _snack(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg, style: const TextStyle(color: Colors.white)),
-      backgroundColor: _navy,
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-    ));
+    kSnack(context, msg);
   }
 
   String get _titleLabel {
@@ -224,10 +220,10 @@ class _AusbildungDocumentPreviewScreenState
       return body;
     }
     return Scaffold(
-      backgroundColor: const Color(0xFFF7FAFF),
+      backgroundColor: KColors.pageBase,
       body: Stack(
         children: [
-          const _BackgroundGlow(),
+          const KBackgroundGlow(),
           body,
         ],
       ),
@@ -239,7 +235,7 @@ class _AusbildungDocumentPreviewScreenState
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
       child: Row(
         children: [
-          _NavBtn(
+          KNavButton(
             icon: Icons.arrow_back_ios_new_rounded,
             onTap: () => Navigator.pop(context),
           ),
@@ -254,7 +250,7 @@ class _AusbildungDocumentPreviewScreenState
               ),
             ),
           ),
-          _NavBtn(icon: Icons.home_rounded, onTap: _goHome),
+          KNavButton(icon: Icons.home_rounded, onTap: _goHome),
         ],
       ),
     );
@@ -265,25 +261,21 @@ class _AusbildungDocumentPreviewScreenState
   Widget _buildEditBar() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: GestureDetector(
-        onTap: _editAnswers,
-        child: Container(
-          width: double.infinity,
+      child: SizedBox(
+        width: double.infinity,
+        child: KGlassCard(
+          borderRadius: 16,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-            color: const Color(0xFFEAFBE9),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: _green.withOpacity(0.5), width: 1.2),
-          ),
+          onTap: _editAnswers,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.edit_rounded, color: Color(0xFF0E7A20), size: 18),
+              const Icon(Icons.edit_rounded, color: KColors.greenDark, size: 18),
               const SizedBox(width: 8),
               Text(
                 _editLabel,
                 style: const TextStyle(
-                  color: Color(0xFF0E7A20),
+                  color: KColors.greenDark,
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
                 ),
@@ -298,7 +290,7 @@ class _AusbildungDocumentPreviewScreenState
   // ── CV section (fully functional) ─────────────────────────────────────────
 
   Widget _buildCvSection() {
-    return _GlassSurface(
+    return KGlassSurface(
       borderRadius: 20,
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -310,7 +302,7 @@ class _AusbildungDocumentPreviewScreenState
                 width: 36,
                 height: 36,
                 decoration: const BoxDecoration(
-                  color: Color(0xFFEAFBE9),
+                  color: KColors.mint,
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(Icons.description_rounded,
@@ -327,17 +319,12 @@ class _AusbildungDocumentPreviewScreenState
                   ),
                 ),
               ),
-              GestureDetector(
+              KGlassCard(
+                borderRadius: 20,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 onTap: _pickCvTemplate,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFEAFBE9),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: _green.withOpacity(0.4)),
-                  ),
-                  child: Row(
+                child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
@@ -352,7 +339,6 @@ class _AusbildungDocumentPreviewScreenState
                       const Icon(Icons.keyboard_arrow_down_rounded,
                           color: _green, size: 15),
                     ],
-                  ),
                 ),
               ),
             ],
@@ -376,51 +362,35 @@ class _AusbildungDocumentPreviewScreenState
             ),
           ),
           const SizedBox(height: 12),
-          GestureDetector(
-            onTap: _saving ? null : _download,
-            child: Container(
-              width: double.infinity,
-              height: 52,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(26),
-                gradient: const LinearGradient(
-                  begin: Alignment.centerLeft,
-                  end: Alignment.centerRight,
-                  colors: [Color(0xFF081532), Color(0xFF07112B)],
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF07112B).withOpacity(0.30),
-                    blurRadius: 18,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
+          Stack(
+            children: [
+              KPrimaryCta(
+                icon: Icons.download_rounded,
+                label: _downloadLabel,
+                isRtl: (_lang == 'ps' || _lang == 'fa'),
+                isSelected: false,
+                onTap: () {
+                if (!_saving) _download();
+              },
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  if (_saving)
-                    const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                          color: _green, strokeWidth: 2.5),
-                    )
-                  else
-                    const Icon(Icons.download_rounded,
-                        color: Colors.white, size: 18),
-                  const SizedBox(width: 8),
-                  Text(
-                    _downloadLabel,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w800,
+              if (_saving)
+                Positioned.directional(
+                  textDirection: (_lang == 'ps' || _lang == 'fa') ? TextDirection.rtl : TextDirection.ltr,
+                  start: 8,
+                  top: 13,
+                  child: Container(
+                    width: 38,
+                    height: 38,
+                    padding: const EdgeInsets.all(9),
+                    decoration: const BoxDecoration(
+                      color: KColors.ctaStart,
+                      shape: BoxShape.circle,
                     ),
+                    child: const CircularProgressIndicator(
+                        color: KColors.green, strokeWidth: 2.5),
                   ),
-                ],
-              ),
-            ),
+                ),
+            ],
           ),
         ],
       ),
@@ -430,22 +400,12 @@ class _AusbildungDocumentPreviewScreenState
   // ── Ausbildung Postings (bottom CTA, relocated from the header) ───────────
 
   Widget _buildAusbildungPostingsButton() {
-    return GestureDetector(
-      onTap: _goAusbildungPostings,
-      child: Container(
-        width: double.infinity,
-        height: 52,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(26),
-          color: _green,
-          boxShadow: [
-            BoxShadow(
-              color: _green.withOpacity(0.35),
-              blurRadius: 18,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
+    return SizedBox(
+      width: double.infinity,
+      height: 52,
+      child: KGlassCard(
+        borderRadius: 22,
+        onTap: _goAusbildungPostings,
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -460,122 +420,6 @@ class _AusbildungDocumentPreviewScreenState
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _NavBtn extends StatelessWidget {
-  static const Color _navy = Color(0xFF091733);
-
-  final IconData icon;
-  final VoidCallback onTap;
-
-  const _NavBtn({required this.icon, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: _GlassSurface(
-        width: 44,
-        height: 44,
-        borderRadius: 14,
-        padding: EdgeInsets.zero,
-        child: Icon(icon, color: _navy, size: 20),
-      ),
-    );
-  }
-}
-
-class _BackgroundGlow extends StatelessWidget {
-  const _BackgroundGlow();
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      children: const [
-        DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFFF9FBFF), Color(0xFFEFF6FF), Color(0xFFF7FFF2)],
-            ),
-          ),
-          child: SizedBox.expand(),
-        ),
-        Positioned(top: 70,   left: -42,  child: _Orb(size: 170, color: Color(0x6639EA2B))),
-        Positioned(top: 135,  right: -65, child: _Orb(size: 170, color: Color(0x44FFB86B))),
-        Positioned(bottom: 95, left: -60, child: _Orb(size: 210, color: Color(0x3339EA2B))),
-      ],
-    );
-  }
-}
-
-class _Orb extends StatelessWidget {
-  final double size;
-  final Color color;
-  const _Orb({required this.size, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return IgnorePointer(
-      child: ImageFiltered(
-        imageFilter: ImageFilter.blur(sigmaX: 35, sigmaY: 35),
-        child: Container(
-          width: size,
-          height: size,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-        ),
-      ),
-    );
-  }
-}
-
-class _GlassSurface extends StatelessWidget {
-  final Widget child;
-  final double? width;
-  final double? height;
-  final double borderRadius;
-  final EdgeInsetsGeometry padding;
-
-  const _GlassSurface({
-    required this.child,
-    this.width,
-    this.height,
-    required this.borderRadius,
-    required this.padding,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(borderRadius),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
-        child: Container(
-          width: width ?? double.infinity,
-          height: height,
-          padding: padding,
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.62),
-            borderRadius: BorderRadius.circular(borderRadius),
-            border: Border.all(color: Colors.white.withOpacity(0.85), width: 1.2),
-            boxShadow: [
-              BoxShadow(
-                  color: Colors.black.withOpacity(0.18),
-                  blurRadius: 24,
-                  spreadRadius: 2,
-                  offset: const Offset(0, 8)),
-              BoxShadow(
-                  color: Colors.black.withOpacity(0.08),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2)),
-            ],
-          ),
-          child: child,
         ),
       ),
     );

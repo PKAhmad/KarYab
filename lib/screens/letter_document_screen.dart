@@ -14,6 +14,7 @@ import '../services/cv_pdf_generator.dart';
 import '../utils/navigation_helpers.dart';
 import '../utils/pdf_save_helper.dart';
 import '../widgets/document_template_picker.dart';
+import '../ui/karyab_ui.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Cover Letter / Deckblatt — type-agnostic application documents, reached
@@ -64,8 +65,8 @@ class LetterDocumentScreen extends StatefulWidget {
 }
 
 class _LetterDocumentScreenState extends State<LetterDocumentScreen> {
-  static const Color _navy  = Color(0xFF091733);
-  static const Color _green = Color(0xFF39EA2B);
+  static const Color _navy  = KColors.navy;
+  static const Color _green = KColors.green;
 
   late String _lang;
   bool _saving = false;
@@ -172,7 +173,7 @@ class _LetterDocumentScreenState extends State<LetterDocumentScreen> {
           textDirection: _isRtl ? TextDirection.rtl : TextDirection.ltr,
           child: AlertDialog(
             backgroundColor: Colors.white,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
             title: Text(_replaceTitle,
                 style: const TextStyle(
                     color: _navy, fontSize: 16, fontWeight: FontWeight.w800)),
@@ -382,12 +383,7 @@ class _LetterDocumentScreenState extends State<LetterDocumentScreen> {
   }
 
   void _snack(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg, style: const TextStyle(color: Colors.white)),
-      backgroundColor: _navy,
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-    ));
+    kSnack(context, msg);
   }
 
   String get _titleLabel {
@@ -592,10 +588,10 @@ class _LetterDocumentScreenState extends State<LetterDocumentScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF7FAFF),
+      backgroundColor: KColors.pageBase,
       body: Stack(
         children: [
-          const _BackgroundGlow(),
+          const KBackgroundGlow(),
           SafeArea(
             child: Column(
               children: [
@@ -620,7 +616,7 @@ class _LetterDocumentScreenState extends State<LetterDocumentScreen> {
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
       child: Row(
         children: [
-          _NavBtn(
+          KNavButton(
             icon: Icons.arrow_back_ios_new_rounded,
             onTap: () => Navigator.pop(context),
           ),
@@ -635,14 +631,14 @@ class _LetterDocumentScreenState extends State<LetterDocumentScreen> {
               ),
             ),
           ),
-          _NavBtn(icon: Icons.home_rounded, onTap: _goHome),
+          KNavButton(icon: Icons.home_rounded, onTap: _goHome),
         ],
       ),
     );
   }
 
   Widget _buildDocSection() {
-    return _GlassSurface(
+    return KGlassSurface(
       borderRadius: 20,
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -654,7 +650,7 @@ class _LetterDocumentScreenState extends State<LetterDocumentScreen> {
                 width: 36,
                 height: 36,
                 decoration: const BoxDecoration(
-                  color: Color(0xFFEAFBE9),
+                  color: KColors.mint,
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
@@ -676,16 +672,12 @@ class _LetterDocumentScreenState extends State<LetterDocumentScreen> {
                   ),
                 ),
               ),
-              GestureDetector(
+              KGlassCard(
+                borderRadius: 20,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 onTap: _pickTemplate,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFEAFBE9),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: _green.withOpacity(0.4)),
-                  ),
-                  child: Row(
+                child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
@@ -700,7 +692,6 @@ class _LetterDocumentScreenState extends State<LetterDocumentScreen> {
                       const Icon(Icons.keyboard_arrow_down_rounded,
                           color: _green, size: 15),
                     ],
-                  ),
                 ),
               ),
             ],
@@ -732,65 +723,47 @@ class _LetterDocumentScreenState extends State<LetterDocumentScreen> {
               ),
             ),
           const SizedBox(height: 12),
-          GestureDetector(
-            onTap: _isCoverLetter
-                ? ((_saving || _loadingTexts) ? null : _download)
-                : (!_deckblattCreated
-                    ? (_unterlagenLoaded ? _createDeckblatt : null)
-                    : (_saving ? null : _download)),
-            child: Container(
-              width: double.infinity,
-              height: 52,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(26),
-                gradient: const LinearGradient(
-                  begin: Alignment.centerLeft,
-                  end: Alignment.centerRight,
-                  colors: [Color(0xFF081532), Color(0xFF07112B)],
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF07112B).withOpacity(0.30),
-                    blurRadius: 18,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
+          Stack(
+            children: [
+              KPrimaryCta(
+                icon: _isCoverLetter
+                ? Icons.picture_as_pdf_rounded
+                : (_deckblattCreated
+                    ? Icons.download_rounded
+                    : Icons.badge_rounded),
+                label: _isCoverLetter
+                ? _createPdfLabel
+                : (_deckblattCreated ? _downloadLabel : _createDeckblattLabel),
+                isRtl: _isRtl,
+                isSelected: false,
+                onTap: () {
+                if (_isCoverLetter) {
+                  if (!_saving && !_loadingTexts) _download();
+                } else if (!_deckblattCreated) {
+                  if (_unterlagenLoaded) _createDeckblatt();
+                } else if (!_saving) {
+                  _download();
+                }
+              },
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  if (_saving)
-                    const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                          color: _green, strokeWidth: 2.5),
-                    )
-                  else
-                    Icon(
-                        _isCoverLetter
-                            ? Icons.picture_as_pdf_rounded
-                            : (_deckblattCreated
-                                ? Icons.download_rounded
-                                : Icons.badge_rounded),
-                        color: Colors.white,
-                        size: 18),
-                  const SizedBox(width: 8),
-                  Text(
-                    _isCoverLetter
-                        ? _createPdfLabel
-                        : (_deckblattCreated
-                            ? _downloadLabel
-                            : _createDeckblattLabel),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w800,
+              if (_saving)
+                Positioned.directional(
+                  textDirection: _isRtl ? TextDirection.rtl : TextDirection.ltr,
+                  start: 8,
+                  top: 13,
+                  child: Container(
+                    width: 38,
+                    height: 38,
+                    padding: const EdgeInsets.all(9),
+                    decoration: const BoxDecoration(
+                      color: KColors.ctaStart,
+                      shape: BoxShape.circle,
                     ),
+                    child: const CircularProgressIndicator(
+                        color: KColors.green, strokeWidth: 2.5),
                   ),
-                ],
-              ),
-            ),
+                ),
+            ],
           ),
           if (!_isCoverLetter && _deckblattCreated) ...[
             const SizedBox(height: 8),
@@ -853,7 +826,7 @@ class _LetterDocumentScreenState extends State<LetterDocumentScreen> {
                           color: _navy,
                           fontSize: 12,
                           fontWeight: FontWeight.w700)),
-                  backgroundColor: const Color(0xFFEAFBE9),
+                  backgroundColor: KColors.mint,
                   side: BorderSide(color: _green.withOpacity(0.5)),
                   deleteIconColor: _navy,
                   onDeleted: () => setState(() => _custom.remove(c)),
@@ -994,38 +967,32 @@ class _LetterDocumentScreenState extends State<LetterDocumentScreen> {
         const SizedBox(height: 4),
         Align(
           alignment: _isRtl ? Alignment.centerLeft : Alignment.centerRight,
-          child: GestureDetector(
+          child: KGlassCard(
+            borderRadius: 20,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
             onTap: (_loadingTexts || _saving) ? null : _regenerate,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-              decoration: BoxDecoration(
-                color: const Color(0xFFEAFBE9),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: _green.withOpacity(0.5)),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (_loadingTexts)
-                    const SizedBox(
-                      width: 14,
-                      height: 14,
-                      child: CircularProgressIndicator(
-                          color: _green, strokeWidth: 2),
-                    )
-                  else
-                    const Icon(Icons.refresh_rounded, color: _navy, size: 16),
-                  const SizedBox(width: 6),
-                  Text(
-                    _regenerateLabel,
-                    style: const TextStyle(
-                      color: _navy,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                    ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (_loadingTexts)
+                  const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(
+                        color: _green, strokeWidth: 2),
+                  )
+                else
+                  const Icon(Icons.refresh_rounded, color: _navy, size: 16),
+                const SizedBox(width: 6),
+                Text(
+                  _regenerateLabel,
+                  style: const TextStyle(
+                    color: _navy,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),
@@ -1053,7 +1020,11 @@ class _LetterDocumentScreenState extends State<LetterDocumentScreen> {
             ),
           ),
           const SizedBox(height: 6),
-          TextField(
+          KGlassCard(
+            borderRadius: 14,
+            padding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            child: TextField(
             controller: ctrl,
             enabled: !_loadingTexts && !_saving,
             minLines: minLines,
@@ -1063,24 +1034,12 @@ class _LetterDocumentScreenState extends State<LetterDocumentScreen> {
             textDirection: TextDirection.ltr,
             style: const TextStyle(color: _navy, fontSize: 13, height: 1.4),
             cursorColor: _green,
-            decoration: InputDecoration(
-              filled: true,
-              fillColor: Colors.white.withOpacity(0.85),
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide(color: _navy.withOpacity(0.12)),
-              ),
-              disabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide(color: _navy.withOpacity(0.08)),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: const BorderSide(color: _green, width: 1.6),
-              ),
+            decoration: const InputDecoration(
+              isDense: true,
+              border: InputBorder.none,
+              contentPadding: EdgeInsets.zero,
             ),
+          ),
           ),
         ],
       ),
@@ -1094,119 +1053,3 @@ class _LetterDocumentScreenState extends State<LetterDocumentScreen> {
 // ausbildung_document_preview_screen.dart, choose_cv_type_screen.dart and
 // introduction_screen.dart).
 // ─────────────────────────────────────────────────────────────────────────────
-
-class _NavBtn extends StatelessWidget {
-  static const Color _navy = Color(0xFF091733);
-
-  final IconData icon;
-  final VoidCallback onTap;
-
-  const _NavBtn({required this.icon, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: _GlassSurface(
-        width: 44,
-        height: 44,
-        borderRadius: 14,
-        padding: EdgeInsets.zero,
-        child: Icon(icon, color: _navy, size: 20),
-      ),
-    );
-  }
-}
-
-class _BackgroundGlow extends StatelessWidget {
-  const _BackgroundGlow();
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      children: const [
-        DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFFF9FBFF), Color(0xFFEFF6FF), Color(0xFFF7FFF2)],
-            ),
-          ),
-          child: SizedBox.expand(),
-        ),
-        Positioned(top: 70,   left: -42,  child: _Orb(size: 170, color: Color(0x6639EA2B))),
-        Positioned(top: 135,  right: -65, child: _Orb(size: 170, color: Color(0x44FFB86B))),
-        Positioned(bottom: 95, left: -60, child: _Orb(size: 210, color: Color(0x3339EA2B))),
-      ],
-    );
-  }
-}
-
-class _Orb extends StatelessWidget {
-  final double size;
-  final Color color;
-  const _Orb({required this.size, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return IgnorePointer(
-      child: ImageFiltered(
-        imageFilter: ImageFilter.blur(sigmaX: 35, sigmaY: 35),
-        child: Container(
-          width: size,
-          height: size,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-        ),
-      ),
-    );
-  }
-}
-
-class _GlassSurface extends StatelessWidget {
-  final Widget child;
-  final double? width;
-  final double? height;
-  final double borderRadius;
-  final EdgeInsetsGeometry padding;
-
-  const _GlassSurface({
-    required this.child,
-    this.width,
-    this.height,
-    required this.borderRadius,
-    required this.padding,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(borderRadius),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
-        child: Container(
-          width: width ?? double.infinity,
-          height: height,
-          padding: padding,
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.62),
-            borderRadius: BorderRadius.circular(borderRadius),
-            border: Border.all(color: Colors.white.withOpacity(0.85), width: 1.2),
-            boxShadow: [
-              BoxShadow(
-                  color: Colors.black.withOpacity(0.18),
-                  blurRadius: 24,
-                  spreadRadius: 2,
-                  offset: const Offset(0, 8)),
-              BoxShadow(
-                  color: Colors.black.withOpacity(0.08),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2)),
-            ],
-          ),
-          child: child,
-        ),
-      ),
-    );
-  }
-}

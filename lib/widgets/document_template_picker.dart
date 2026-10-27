@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/document_template.dart';
+import '../ui/karyab_ui.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CV template picker — a bottom sheet shown before CV generation so the user
@@ -54,8 +55,8 @@ class _DocumentTemplateSheet extends StatefulWidget {
 }
 
 class _DocumentTemplateSheetState extends State<_DocumentTemplateSheet> {
-  static const Color _navy = Color(0xFF091733);
-  static const Color _muted = Color(0xFF65738A);
+  static const Color _navy = KColors.navy;
+  static const Color _muted = KColors.textSecondary;
 
   late DocumentTemplate _selected = widget.initial;
 
@@ -75,10 +76,7 @@ class _DocumentTemplateSheetState extends State<_DocumentTemplateSheet> {
     return Container(
       constraints: BoxConstraints(maxHeight: maxHeight),
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 20),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
+      decoration: kSheetDecoration,
       child: SafeArea(
         top: false,
         child: SingleChildScrollView(
@@ -86,16 +84,7 @@ class _DocumentTemplateSheetState extends State<_DocumentTemplateSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Center(
-              child: Container(
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFD1D9E6),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
+            const Center(child: KSheetHandle()),
             const SizedBox(height: 16),
             const Text(
               'Choose a CV Template',
@@ -144,8 +133,8 @@ class _DocumentTemplateSheetState extends State<_DocumentTemplateSheet> {
 }
 
 class _TemplateCard extends StatelessWidget {
-  static const Color _navy = Color(0xFF091733);
-  static const Color _green = Color(0xFF39EA2B);
+  static const Color _navy = KColors.navy;
+  static const Color _green = KColors.green;
 
   final DocumentTemplate template;
   final bool selected;
@@ -159,29 +148,12 @@ class _TemplateCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return KGlassCard(
+      borderRadius: 16,
+      selected: selected,
       onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.85),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: selected ? _green : Colors.white.withOpacity(0.9),
-            width: selected ? 2.2 : 1.2,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: selected
-                  ? _green.withOpacity(0.28)
-                  : Colors.black.withOpacity(0.08),
-              blurRadius: selected ? 18 : 10,
-              spreadRadius: selected ? 1 : 0,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        clipBehavior: Clip.antiAlias,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(14),
         child: Column(
           children: [
             Expanded(
@@ -237,7 +209,7 @@ class _TemplateCard extends StatelessWidget {
 // neutral icon + template name instead of Flutter's default broken-image box
 // so the picker stays usable in the meantime.
 class _MissingThumbnail extends StatelessWidget {
-  static const Color _navy = Color(0xFF091733);
+  static const Color _navy = KColors.navy;
 
   final String label;
   const _MissingThumbnail({required this.label});
@@ -313,8 +285,8 @@ class _AnschreibenTemplateSheet extends StatefulWidget {
 }
 
 class _AnschreibenTemplateSheetState extends State<_AnschreibenTemplateSheet> {
-  static const Color _navy = Color(0xFF091733);
-  static const Color _muted = Color(0xFF65738A);
+  static const Color _navy = KColors.navy;
+  static const Color _muted = KColors.textSecondary;
 
   late AnschreibenTemplate _selected = widget.initial;
 
@@ -327,10 +299,7 @@ class _AnschreibenTemplateSheetState extends State<_AnschreibenTemplateSheet> {
     return Container(
       constraints: BoxConstraints(maxHeight: maxHeight),
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 20),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
+      decoration: kSheetDecoration,
       child: SafeArea(
         top: false,
         child: SingleChildScrollView(
@@ -338,16 +307,7 @@ class _AnschreibenTemplateSheetState extends State<_AnschreibenTemplateSheet> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Center(
-                child: Container(
-                  width: 36,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFD1D9E6),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
+              const Center(child: KSheetHandle()),
               const SizedBox(height: 16),
               const Text(
                 'Choose an Anschreiben Template',
@@ -396,8 +356,8 @@ class _AnschreibenTemplateSheetState extends State<_AnschreibenTemplateSheet> {
 }
 
 class _AnschreibenTemplateCard extends StatelessWidget {
-  static const Color _navy = Color(0xFF091733);
-  static const Color _green = Color(0xFF39EA2B);
+  static const Color _navy = KColors.navy;
+  static const Color _green = KColors.green;
 
   final AnschreibenTemplate template;
   final bool selected;
@@ -411,29 +371,12 @@ class _AnschreibenTemplateCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return KGlassCard(
+      borderRadius: 16,
+      selected: selected,
       onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.85),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: selected ? _green : Colors.white.withOpacity(0.9),
-            width: selected ? 2.2 : 1.2,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: selected
-                  ? _green.withOpacity(0.28)
-                  : Colors.black.withOpacity(0.08),
-              blurRadius: selected ? 18 : 10,
-              spreadRadius: selected ? 1 : 0,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        clipBehavior: Clip.antiAlias,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(14),
         child: Column(
           children: [
             Expanded(
@@ -525,8 +468,8 @@ class _DeckblattTemplateSheet extends StatefulWidget {
 }
 
 class _DeckblattTemplateSheetState extends State<_DeckblattTemplateSheet> {
-  static const Color _navy = Color(0xFF091733);
-  static const Color _muted = Color(0xFF65738A);
+  static const Color _navy = KColors.navy;
+  static const Color _muted = KColors.textSecondary;
 
   late DeckblattTemplate _selected = widget.initial;
 
@@ -536,10 +479,7 @@ class _DeckblattTemplateSheetState extends State<_DeckblattTemplateSheet> {
     return Container(
       constraints: BoxConstraints(maxHeight: maxHeight),
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 20),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
+      decoration: kSheetDecoration,
       child: SafeArea(
         top: false,
         child: SingleChildScrollView(
@@ -547,16 +487,7 @@ class _DeckblattTemplateSheetState extends State<_DeckblattTemplateSheet> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Center(
-                child: Container(
-                  width: 36,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFD1D9E6),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
+              const Center(child: KSheetHandle()),
               const SizedBox(height: 16),
               const Text(
                 'Choose a Deckblatt Template',
@@ -602,8 +533,8 @@ class _DeckblattTemplateSheetState extends State<_DeckblattTemplateSheet> {
 }
 
 class _DeckblattTemplateCard extends StatelessWidget {
-  static const Color _navy = Color(0xFF091733);
-  static const Color _green = Color(0xFF39EA2B);
+  static const Color _navy = KColors.navy;
+  static const Color _green = KColors.green;
 
   final DeckblattTemplate template;
   final bool selected;
@@ -617,29 +548,12 @@ class _DeckblattTemplateCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return KGlassCard(
+      borderRadius: 16,
+      selected: selected,
       onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.85),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: selected ? _green : Colors.white.withOpacity(0.9),
-            width: selected ? 2.2 : 1.2,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: selected
-                  ? _green.withOpacity(0.28)
-                  : Colors.black.withOpacity(0.08),
-              blurRadius: selected ? 18 : 10,
-              spreadRadius: selected ? 1 : 0,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        clipBehavior: Clip.antiAlias,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(14),
         child: Column(
           children: [
             Expanded(
